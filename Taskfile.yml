@@ -1,0 +1,45 @@
+version: "3"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmd: task --list
+
+  install:
+    desc: Install dependencies
+    cmd: bun install
+
+  catalog:
+    desc: Download and preprocess star catalog (HYG + constellations → dist/data/)
+    cmd: bun run scripts/preprocess-catalog.ts
+    sources:
+      - data/hygdata_v41.csv
+      - data/constellationship.fab
+    generates:
+      - dist/data/stars.json
+      - dist/data/constellations.json
+
+  build:
+    desc: Build the frontend (runs catalog first if data is missing)
+    deps: [catalog]
+    cmd: bun run build
+
+  dev:
+    desc: Start Vite dev server (hot reload, no catalog needed)
+    cmd: bun run dev
+
+  serve:
+    desc: Serve the production build locally
+    deps: [build]
+    cmd: bun run start
+
+  lint:
+    desc: Lint and auto-fix with Biome
+    cmd: bunx biome check --write .
+
+  setup:
+    desc: Full first-time setup (install + catalog + build)
+    cmds:
+      - task: install
+      - task: catalog
+      - task: build

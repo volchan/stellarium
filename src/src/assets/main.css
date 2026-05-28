@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@theme inline {
+	--color-bg: #07080f;
+	--color-surface: #0d0f1a;
+	--color-surface-2: #131622;
+	--color-fg: #dde2f0;
+	--color-fg-dim: #a8b2cc;
+	--color-muted: #5a6585;
+	--color-border-col: #1c2035;
+	--color-accent: #4a9eff;
+	--color-accent-warm: #ffb84d;
+	--color-success: #3ecf8e;
+	--color-danger: #ff5b5b;
+	--font-mono: ui-monospace, "JetBrains Mono", "Cascadia Code", monospace;
+	--radius-sm: 5px;
+	--radius-md: 10px;
+}
+
+:root {
+	--bg: #07080f;
+	--surface: #0d0f1a;
+	--surface-2: #131622;
+	--fg: #dde2f0;
+	--fg-dim: #a8b2cc;
+	--muted: #5a6585;
+	--border: #1c2035;
+	--accent: #4a9eff;
+	--accent-warm: #ffb84d;
+	--success: #3ecf8e;
+	--danger: #ff5b5b;
+	--font-display: "Inter", -apple-system, system-ui, sans-serif;
+	--font-body: "Inter", -apple-system, system-ui, sans-serif;
+	--font-mono: ui-monospace, "JetBrains Mono", "Cascadia Code", monospace;
+	--radius-sm: 5px;
+	--radius-md: 10px;
+	--motion-fast: 140ms;
+	--motion-base: 240ms;
+	--ease-out: cubic-bezier(0, 0, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+html,
+body,
+#app {
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	background: var(--bg);
+	color: var(--fg);
+	font-family: var(--font-body);
+	font-size: 13px;
+	line-height: 1.5;
+}
+.app {
+	display: flex;
+	flex-direction: column;
+	height: 100svh;
+	width: 100svw;
+}
+canvas#sky {
+	touch-action: none;
+}

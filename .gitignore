@@ -1,0 +1,27 @@
+# Claude
+.claude/
+
+# Task
+.task/
+
+# Dependencies
+node_modules/
+
+# Build output and generated catalog data
+/dist/
+
+# Raw catalog source data
+/data/
+
+# Screenshots and local artifacts
+*.png
+*.jpg
+*.jpeg
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
