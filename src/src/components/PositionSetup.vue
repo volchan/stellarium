@@ -187,9 +187,10 @@ function formatCoords(lat: number, lon: number): string {
   outline: none;
   transition: border-color var(--motion-fast);
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 .coord-inp::-webkit-outer-spin-button,
-.coord-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.coord-inp::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
 .coord-inp::placeholder { color: var(--muted); opacity: 0.6; }
 .coord-inp:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.18); }
 .coord-actions { display: flex; justify-content: center; }
