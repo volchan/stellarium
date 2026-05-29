@@ -39,7 +39,7 @@ function updateTimezone(lat: number, lon: number) {
 }
 
 function updateClock() {
-	telemetry.zuluTime = Date.now() / 1000;
+	telemetry.zuluTime = Date.now() / 1000 + telemetry.timeOffset;
 	const d = new Date(telemetry.zuluTime * 1000);
 	const tz = telemetry.currentTz;
 	const parts = new Intl.DateTimeFormat("en", {

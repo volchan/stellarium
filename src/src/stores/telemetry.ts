@@ -9,10 +9,19 @@ export const useTelemetryStore = defineStore("telemetry", () => {
 	const pitch = ref(30);
 	const zuluTime = ref(Date.now() / 1000);
 	const currentTz = ref("UTC");
+	const timeOffset = ref(0); // seconds offset from live time
 
 	function setTimezone(tz: string) {
 		currentTz.value = tz;
 	}
 
-	return { lat, lon, alt, headingTrue, pitch, zuluTime, currentTz, setTimezone };
+	function resetTime() {
+		timeOffset.value = 0;
+	}
+
+	function stepTime(seconds: number) {
+		timeOffset.value += seconds;
+	}
+
+	return { lat, lon, alt, headingTrue, pitch, zuluTime, currentTz, timeOffset, setTimezone, resetTime, stepTime };
 });
