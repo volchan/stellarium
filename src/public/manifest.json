@@ -1,7 +1,7 @@
 {
   "name": "Stellarium",
   "short_name": "Stellarium",
-  "description": "Real-time planetarium overlay for MSFS 2024",
+  "description": "Real-time planetarium for any position on Earth",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#07080f",
