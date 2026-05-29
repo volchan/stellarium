@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { useTelemetryStore } from "@/stores/telemetry";
 import { useUiStore } from "@/stores/ui";
-import { computed, ref } from "vue";
+import { computed } from "vue";
 
 const telemetry = useTelemetryStore();
 const ui = useUiStore();
 
-const props = defineProps<{
+defineProps<{
 	clockDisplay: string;
 	clockLabel: string;
 }>();
@@ -15,14 +15,14 @@ const emit = defineEmits<{
 	openForm: [];
 }>();
 
-const timeControlOpen = ref(false);
+const isLive = computed(() => telemetry.timeOffset === 0 && telemetry.timeSpeed === 1);
 
-const isLive = computed(() => telemetry.timeOffset === 0);
-
-const offsetLabel = computed(() => {
+const clockMeta = computed(() => {
+	if (telemetry.timeSpeed !== 1) return `${telemetry.timeSpeed}×`;
 	const s = Math.abs(telemetry.timeOffset);
+	if (s === 0) return "UTC";
 	const sign = telemetry.timeOffset >= 0 ? "+" : "−";
-	if (s < 60) return `${sign}${s}s`;
+	if (s < 60) return `${sign}${Math.round(s)}s`;
 	if (s < 3600) return `${sign}${Math.round(s / 60)}m`;
 	if (s < 86400) return `${sign}${Math.round(s / 3600)}h`;
 	return `${sign}${Math.round(s / 86400)}d`;
@@ -46,36 +46,10 @@ function formatLon(lon: number): string {
     </div>
 
     <div v-if="ui.coordsSet" class="hud-clock-wrap">
-      <button
-        class="hud-clock"
-        type="button"
-        :title="timeControlOpen ? 'Close time control' : 'Control time'"
-        :class="{ 'clock-offset': !isLive }"
-        @click="timeControlOpen = !timeControlOpen"
-      >
-        <span class="clock-label">{{ isLive ? clockLabel : offsetLabel }}</span>
+      <div class="hud-clock" :class="{ 'clock-offset': !isLive }">
+        <span class="clock-label">{{ clockMeta }}</span>
         <span class="clock-value">{{ clockDisplay }}</span>
-      </button>
-
-      <Transition name="tc">
-        <div v-if="timeControlOpen" class="time-ctrl">
-          <button class="tc-btn" type="button" title="−1 day"    @click="telemetry.stepTime(-86400)">−1d</button>
-          <button class="tc-btn" type="button" title="−6 hours"  @click="telemetry.stepTime(-21600)">−6h</button>
-          <button class="tc-btn" type="button" title="−1 hour"   @click="telemetry.stepTime(-3600)">−1h</button>
-          <button class="tc-btn" type="button" title="−10 min"   @click="telemetry.stepTime(-600)">−10m</button>
-          <button
-            class="tc-btn tc-now"
-            type="button"
-            title="Return to live time"
-            :disabled="isLive"
-            @click="telemetry.resetTime()"
-          >Now</button>
-          <button class="tc-btn" type="button" title="+10 min"   @click="telemetry.stepTime(600)">+10m</button>
-          <button class="tc-btn" type="button" title="+1 hour"   @click="telemetry.stepTime(3600)">+1h</button>
-          <button class="tc-btn" type="button" title="+6 hours"  @click="telemetry.stepTime(21600)">+6h</button>
-          <button class="tc-btn" type="button" title="+1 day"    @click="telemetry.stepTime(86400)">+1d</button>
-        </div>
-      </Transition>
+      </div>
     </div>
 
     <div class="hud-right">
@@ -100,6 +74,17 @@ function formatLon(lon: number): string {
         type="button"
         @click="emit('openForm')"
       >{{ ui.coordsSet ? 'Change position' : 'Set position' }}</button>
+      <button
+        v-if="ui.coordsSet"
+        class="hud-btn-settings"
+        type="button"
+        title="Search (/ or F)"
+        @click="ui.searchOpen = true"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </button>
       <button
         v-if="ui.coordsSet"
         class="hud-btn-settings"
@@ -146,7 +131,6 @@ function formatLon(lon: number): string {
 .brand-icon { width: 16px; height: 16px; opacity: 0.55; flex: none; }
 
 .hud-clock-wrap {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -156,14 +140,8 @@ function formatLon(lon: number): string {
   display: flex;
   align-items: baseline;
   gap: 7px;
-  background: none;
-  border: none;
-  cursor: pointer;
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  transition: background var(--motion-fast);
 }
-.hud-clock:hover { background: rgba(255,255,255,0.04); }
 
 .clock-label {
   font-family: var(--font-mono);
@@ -191,52 +169,6 @@ function formatLon(lon: number): string {
   color: var(--accent-warm);
   text-shadow: 0 0 28px rgba(255, 160, 50, 0.35);
 }
-
-/* Time control panel */
-.time-ctrl {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  background: rgba(9, 11, 19, 0.97);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 5px 7px;
-  z-index: 500;
-  white-space: nowrap;
-  backdrop-filter: blur(16px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-}
-
-.tc-btn {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 4px 7px;
-  cursor: pointer;
-  transition: color var(--motion-fast), border-color var(--motion-fast), background var(--motion-fast);
-}
-.tc-btn:hover { color: var(--fg); border-color: var(--border); background: rgba(255,255,255,0.04); }
-
-.tc-now {
-  color: var(--accent);
-  border-color: rgba(74, 158, 255, 0.3);
-  background: rgba(74, 158, 255, 0.06);
-  margin: 0 3px;
-}
-.tc-now:hover { background: rgba(74, 158, 255, 0.14); border-color: var(--accent); }
-.tc-now:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
-
-.tc-enter-active, .tc-leave-active { transition: opacity 120ms, transform 120ms; }
-.tc-enter-from, .tc-leave-to { opacity: 0; transform: translateX(-50%) translateY(-4px); }
 
 .hud-right {
   display: flex;
@@ -277,7 +209,6 @@ function formatLon(lon: number): string {
 .data-value.dim { color: var(--fg-dim); }
 
 .hud-sep { color: var(--border); font-size: 15px; line-height: 1; }
-
 
 .hud-btn-form {
   font-family: var(--font-mono);
@@ -321,8 +252,6 @@ function formatLon(lon: number): string {
   .hud-brand { display: none; }
   .clock-label { display: none; }
   .clock-value { font-size: 16px; letter-spacing: 0.02em; }
-  .time-ctrl { gap: 1px; padding: 4px 5px; }
-  .tc-btn { padding: 4px 5px; font-size: 8px; }
   .hud-right { gap: 8px; }
   .hud-btn-form { padding: 3px 7px; font-size: 8px; }
 }

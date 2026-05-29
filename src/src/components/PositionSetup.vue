@@ -73,7 +73,7 @@ function formatCoords(lat: number, lon: number): string {
     </svg>
     <div class="ps-title">Set Observer Position</div>
     <div class="ps-sub">
-      Enter your coordinates to render the night sky at your location.
+      Enter your coordinates to render the sky at your location.
     </div>
 
     <form class="coord-form" autocomplete="off" @submit.prevent="onSubmit">

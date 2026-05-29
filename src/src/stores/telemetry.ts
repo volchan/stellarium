@@ -10,6 +10,7 @@ export const useTelemetryStore = defineStore("telemetry", () => {
 	const zuluTime = ref(Date.now() / 1000);
 	const currentTz = ref("UTC");
 	const timeOffset = ref(0); // seconds offset from live time
+	const timeSpeed  = ref(1); // playback speed multiplier (1 = realtime)
 
 	function setTimezone(tz: string) {
 		currentTz.value = tz;
@@ -17,11 +18,16 @@ export const useTelemetryStore = defineStore("telemetry", () => {
 
 	function resetTime() {
 		timeOffset.value = 0;
+		timeSpeed.value  = 1;
 	}
 
 	function stepTime(seconds: number) {
 		timeOffset.value += seconds;
 	}
 
-	return { lat, lon, alt, headingTrue, pitch, zuluTime, currentTz, timeOffset, setTimezone, resetTime, stepTime };
+	function setSpeed(s: number) {
+		timeSpeed.value = s;
+	}
+
+	return { lat, lon, alt, headingTrue, pitch, zuluTime, currentTz, timeOffset, timeSpeed, setTimezone, resetTime, stepTime, setSpeed };
 });

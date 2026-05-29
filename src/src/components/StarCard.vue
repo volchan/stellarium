@@ -99,9 +99,50 @@ function formatDec(dec: number): string {
 }
 
 const star = computed(() => ui.pinnedStar);
+const isSolarBody = computed(() => star.value ? star.value.star.id < 0 : false);
+
+function formatDistAU(au: number): string {
+	if (au < 0.01) {
+		const km = Math.round(au * 149597870.7);
+		return `${km.toLocaleString()} km`;
+	}
+	return `${au.toFixed(4)} AU`;
+}
+
+function formatPhase(phase: number): string {
+	const pct = Math.round(phase * 100);
+	if (pct < 3) return `${pct}% (New)`;
+	if (pct < 47) return `${pct}% (Crescent)`;
+	if (pct < 53) return `${pct}% (Quarter)`;
+	if (pct < 97) return `${pct}% (Gibbous)`;
+	return `${pct}% (Full)`;
+}
+
+const SOLAR_COLORS: Record<number, { bg: string; glow: string; size: string }> = {
+	[-1]:  { bg: "radial-gradient(circle at 38% 38%, #fff8e0 0%, #ffe080 35%, #ffa020 70%, rgba(255,80,0,0) 100%)", glow: "rgba(255,180,40,0.28)", size: "72px" },
+	[-2]:  { bg: "radial-gradient(circle at 36% 36%, #e8e0d0 0%, #c0b8a8 55%, #888070 100%)", glow: "rgba(200,190,170,0.15)", size: "60px" },
+	[-3]:  { bg: "radial-gradient(circle, #b8afa0 0%, #907870 100%)", glow: "rgba(180,150,120,0.15)", size: "8px" },
+	[-4]:  { bg: "radial-gradient(circle, #fff5d0 0%, #e0d080 100%)", glow: "rgba(240,220,120,0.2)", size: "14px" },
+	[-5]:  { bg: "radial-gradient(circle, #e07040 0%, #a03010 100%)", glow: "rgba(200,80,40,0.2)", size: "10px" },
+	[-6]:  { bg: "radial-gradient(circle, #e8c890 0%, #c09050 100%)", glow: "rgba(200,160,80,0.18)", size: "26px" },
+	[-7]:  { bg: "radial-gradient(circle, #e8d890 0%, #b09040 100%)", glow: "rgba(180,150,60,0.18)", size: "24px" },
+	[-8]:  { bg: "radial-gradient(circle, #a0d8e8 0%, #70b0c0 100%)", glow: "rgba(100,180,200,0.18)", size: "18px" },
+	[-9]:  { bg: "radial-gradient(circle, #6080d0 0%, #3050a0 100%)", glow: "rgba(80,100,200,0.18)", size: "16px" },
+};
+
+const solarStyle = computed(() => {
+	if (!star.value) return {};
+	const s = SOLAR_COLORS[star.value.star.id] ?? SOLAR_COLORS[-3];
+	return {
+		background: s.bg,
+		boxShadow: `0 0 ${parseInt(s.size) * 3}px ${parseInt(s.size) * 1.5}px ${s.glow}`,
+		width: s.size,
+		height: s.size,
+	};
+});
 
 watch(star, (s) => {
-	if (!s) return;
+	if (!s || isSolarBody.value) return;
 	placeholderVisible.value = true;
 	surveyIndex.value = 0;
 	updateAladin(s.star.ra * 15, s.star.dec);
@@ -168,43 +209,52 @@ function close() {
       </button>
     </div>
 
-    <!-- Sky preview -->
+    <!-- Sky preview (stars only) / Solar body glow (Sun/Moon) -->
     <div class="sc-preview">
-      <div id="sc-aladin"></div>
-      <div v-if="placeholderVisible" class="sc-placeholder">
-        <svg class="sc-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-        </svg>
-        <span>Loading sky…</span>
+      <!-- Solar body: decorative glow instead of Aladin -->
+      <div v-if="isSolarBody" class="sc-solar-preview">
+        <div class="sc-solar-body" :style="solarStyle"></div>
+        <div class="sc-solar-label">{{ star?.star.proper }}</div>
       </div>
 
-      <!-- Custom controls overlay -->
-      <div class="sc-controls">
-        <button class="sc-ctrl-btn" type="button" title="Zoom in" @click="aladinInst?.increaseZoom()">
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-            <line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/>
+      <!-- Regular star: Aladin sky survey -->
+      <template v-else>
+        <div id="sc-aladin"></div>
+        <div v-if="placeholderVisible" class="sc-placeholder">
+          <svg class="sc-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
           </svg>
-        </button>
-        <button class="sc-ctrl-btn" type="button" title="Zoom out" @click="aladinInst?.decreaseZoom()">
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-            <line x1="1" y1="6" x2="11" y2="6"/>
-          </svg>
-        </button>
-        <div class="sc-ctrl-sep"></div>
-        <button
-          class="sc-ctrl-btn sc-survey-btn"
-          type="button"
-          :title="SURVEYS[surveyIndex].title"
-          @click="cycleSurvey"
-        >{{ SURVEYS[surveyIndex].label }}</button>
-      </div>
+          <span>Loading sky…</span>
+        </div>
 
-      <!-- RA / Dec bar -->
-      <div v-if="star && !placeholderVisible" class="sc-coords-bar">
-        <span>RA {{ formatRa(star.star.ra * 15) }}</span>
-        <span class="sc-coords-sep">·</span>
-        <span>Dec {{ formatDec(star.star.dec) }}</span>
-      </div>
+        <!-- Custom controls overlay -->
+        <div class="sc-controls">
+          <button class="sc-ctrl-btn" type="button" title="Zoom in" @click="aladinInst?.increaseZoom()">
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/>
+            </svg>
+          </button>
+          <button class="sc-ctrl-btn" type="button" title="Zoom out" @click="aladinInst?.decreaseZoom()">
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <line x1="1" y1="6" x2="11" y2="6"/>
+            </svg>
+          </button>
+          <div class="sc-ctrl-sep"></div>
+          <button
+            class="sc-ctrl-btn sc-survey-btn"
+            type="button"
+            :title="SURVEYS[surveyIndex].title"
+            @click="cycleSurvey"
+          >{{ SURVEYS[surveyIndex].label }}</button>
+        </div>
+
+        <!-- RA / Dec bar -->
+        <div v-if="star && !placeholderVisible" class="sc-coords-bar">
+          <span>RA {{ formatRa(star.star.ra * 15) }}</span>
+          <span class="sc-coords-sep">·</span>
+          <span>Dec {{ formatDec(star.star.dec) }}</span>
+        </div>
+      </template>
     </div>
 
     <!-- Stats grid -->
@@ -215,7 +265,7 @@ function close() {
       </div>
       <div class="sc-stat">
         <span class="sc-stat-k">Distance</span>
-        <span class="sc-stat-v">{{ star?.star.dist ? formatDist(star.star.dist) : '—' }}</span>
+        <span class="sc-stat-v">{{ star ? (star.star.distAU != null ? formatDistAU(star.star.distAU) : (star.star.dist ? formatDist(star.star.dist) : '—')) : '—' }}</span>
       </div>
       <div class="sc-stat">
         <span class="sc-stat-k">Altitude</span>
@@ -224,6 +274,10 @@ function close() {
       <div class="sc-stat">
         <span class="sc-stat-k">Azimuth</span>
         <span class="sc-stat-v">{{ star ? `${star.altAz.az.toFixed(1)}°` : '—' }}</span>
+      </div>
+      <div v-if="star?.star.phase != null" class="sc-stat sc-stat--full">
+        <span class="sc-stat-k">Illumination</span>
+        <span class="sc-stat-v">{{ formatPhase(star.star.phase) }}</span>
       </div>
     </div>
 
@@ -341,6 +395,31 @@ function close() {
 :deep(.aladin-location) { display: none !important; }
 :deep(.aladin-toolbar) { display: none !important; }
 
+.sc-solar-preview {
+  width: 100%;
+  height: 100%;
+  background: #000408;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.sc-solar-body {
+  border-radius: 50%;
+  flex: none;
+}
+
+.sc-solar-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(90, 101, 133, 0.5);
+}
+
 .sc-placeholder {
   position: absolute; inset: 0;
   display: flex;
@@ -427,6 +506,9 @@ function close() {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+.sc-stat--full {
+  grid-column: span 2;
 }
 .sc-stat-k {
   font-family: var(--font-mono);

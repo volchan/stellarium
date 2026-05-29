@@ -10,6 +10,8 @@ export interface Star {
 	dist?: number;
 	spect?: string;
 	con?: string;
+	phase?: number;    // illumination fraction 0-1 (solar system bodies)
+	distAU?: number;   // geocentric distance in AU (solar system bodies; for Moon, AU × 149597870.7 = km)
 }
 
 export interface Constellation {

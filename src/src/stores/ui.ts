@@ -8,5 +8,6 @@ export const useUiStore = defineStore("ui", () => {
 	const pinnedStar = ref<VisibleStar | null>(null);
 	const hoveredStar = ref<VisibleStar | null>(null);
 	const camera = reactive({ az: 0, alt: 30 });
-	return { settingsOpen, coordsSet, pinnedStar, hoveredStar, camera };
+	const searchOpen = ref(false);
+	return { settingsOpen, coordsSet, pinnedStar, hoveredStar, camera, searchOpen };
 });

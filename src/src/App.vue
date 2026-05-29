@@ -39,6 +39,9 @@ function updateTimezone(lat: number, lon: number) {
 }
 
 function updateClock() {
+	if (telemetry.timeSpeed !== 1) {
+		telemetry.timeOffset += (telemetry.timeSpeed - 1) * 0.1;
+	}
 	telemetry.zuluTime = Date.now() / 1000 + telemetry.timeOffset;
 	const d = new Date(telemetry.zuluTime * 1000);
 	const tz = telemetry.currentTz;
@@ -59,19 +62,18 @@ let clockInterval: ReturnType<typeof setInterval> | null = null;
 
 function onKeyDown(e: KeyboardEvent) {
 	if ((document.activeElement as HTMLElement)?.tagName === "INPUT") return;
+	if (e.key === "/" || e.key === "f" || e.key === "F") {
+		ui.searchOpen = true;
+		return;
+	}
 	if (e.key === "s" || e.key === "S") {
 		ui.settingsOpen = !ui.settingsOpen;
 		return;
 	}
-if (e.key === "Escape") {
-		if (ui.settingsOpen) {
-			ui.settingsOpen = false;
-			return;
-		}
-		if (ui.pinnedStar) {
-			ui.pinnedStar = null;
-			return;
-		}
+	if (e.key === "Escape") {
+		if (ui.searchOpen) { ui.searchOpen = false; return; }
+		if (ui.settingsOpen) { ui.settingsOpen = false; return; }
+		if (ui.pinnedStar) { ui.pinnedStar = null; return; }
 		if (ui.coordsSet) ui.coordsSet = false;
 	}
 }

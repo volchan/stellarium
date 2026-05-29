@@ -9,9 +9,11 @@ import { useUiStore } from "@/stores/ui";
 import { onMounted, onUnmounted, ref } from "vue";
 import CompassBar from "./CompassBar.vue";
 import PositionSetup from "./PositionSetup.vue";
+import SearchBar from "./SearchBar.vue";
 import SettingsPanel from "./SettingsPanel.vue";
 import StarCard from "./StarCard.vue";
 import StarTooltip from "./StarTooltip.vue";
+import TimeControls from "./TimeControls.vue";
 
 const telemetry = useTelemetryStore();
 const settings = useSettingsStore();
@@ -215,6 +217,7 @@ defineExpose({ renderer: () => renderer });
     <CompassBar v-if="ui.coordsSet" />
 
     <div class="key-hints">
+      <div class="key-hint"><kbd>/</kbd> Search</div>
       <div class="key-hint"><kbd>S</kbd> Settings</div>
       <div class="key-hint"><kbd>Scroll</kbd> Zoom</div>
     </div>
@@ -223,6 +226,8 @@ defineExpose({ renderer: () => renderer });
     <SettingsPanel :stars-count="starsCount" :consts-count="constsCount" />
     <StarCard />
     <PositionSetup />
+    <TimeControls v-if="ui.coordsSet" />
+    <SearchBar v-if="ui.searchOpen" />
   </div>
 </template>
 

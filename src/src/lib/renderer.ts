@@ -14,12 +14,13 @@ import {
 } from "three";
 import {
 	bvToColor,
+	computePlanets,
 	jdToGMST,
-	limitingMag,
+	moonDistanceKm,
 	moonPhase,
 	moonRaDec,
 	raDec_to_AltAz,
-	skyStateFromAlt,
+	sunDistanceAU,
 	sunRaDec,
 	zuluToJD,
 } from "./astro";
@@ -203,6 +204,35 @@ export function initRenderer(
 
 	scene.add(new Points(catGeo, catMat));
 
+	// ── Planets (7 slots, updated each frame) ────────────
+
+	const PL_MAX = 7;
+	const plPosBuf = new Float32Array(PL_MAX * 3);
+	const plColBuf = new Float32Array(PL_MAX * 3);
+	const plSizBuf = new Float32Array(PL_MAX);
+
+	const plGeo = new BufferGeometry();
+	const plPosAttr = new BufferAttribute(plPosBuf, 3);
+	const plColAttr = new BufferAttribute(plColBuf, 3);
+	const plSizAttr = new BufferAttribute(plSizBuf, 1);
+	plPosAttr.setUsage(DynamicDrawUsage);
+	plColAttr.setUsage(DynamicDrawUsage);
+	plSizAttr.setUsage(DynamicDrawUsage);
+	plGeo.setAttribute("position", plPosAttr);
+	plGeo.setAttribute("aColor",   plColAttr);
+	plGeo.setAttribute("aSize",    plSizAttr);
+
+	const plMat = new ShaderMaterial({
+		vertexShader: STAR_VERT,
+		fragmentShader: STAR_FRAG,
+		transparent: true,
+		depthTest: false,
+		depthWrite: false,
+		blending: AdditiveBlending,
+	});
+
+	scene.add(new Points(plGeo, plMat));
+
 	// ── Background stars (static, seeded) ────────────────
 
 	const BG_COUNT = 1900;
@@ -252,7 +282,8 @@ export function initRenderer(
 		blending: AdditiveBlending,
 	});
 
-	scene.add(new Points(bgGeo, bgMat));
+	const bgStars = new Points(bgGeo, bgMat);
+	scene.add(bgStars);
 
 	// ── Constellation lines ──────────────────────────────
 
@@ -305,13 +336,19 @@ export function initRenderer(
 
 	// ── Overlay drawing ──────────────────────────────────
 
-	function drawHoverRing(t: number) {
+	function drawHoverRing(t: number, lat: number, lon: number, gmst: number) {
 		const sel = pinnedStar ?? hoveredStar;
 		if (!sel) return;
 
 		const pulse = 0.5 + Math.sin(t * 0.0025) * 0.32;
-		const ar = (sel.altAz.alt * Math.PI) / 180;
-		const azr = (sel.altAz.az * Math.PI) / 180;
+
+		// Solar bodies use live RA/Dec (computed each frame); catalog stars have fixed RA/Dec
+		const live = sel.star.id < 0 ? _liveRaDec.get(sel.star.id) : undefined;
+		const { ra, dec } = live ?? sel.star;
+		const aa = raDec_to_AltAz(ra, dec, lat, lon, gmst);
+
+		const ar  = (aa.alt * Math.PI) / 180;
+		const azr = (aa.az  * Math.PI) / 180;
 		if (!project(Math.cos(ar) * Math.sin(azr), Math.sin(ar), -Math.cos(ar) * Math.cos(azr), _sc))
 			return;
 
@@ -338,52 +375,16 @@ export function initRenderer(
 		ctx.restore();
 	}
 
-	// Sky state, updated each frame
+	// Sun/Moon positions, updated each frame
 	let _sunAlt = -90;
 	let _sunAz  = 0;
 	let _moonAlt = -90;
 	let _moonAz  = 0;
 	let _moonPhaseVal = 0;
 
-	function drawSky(state: AppState) {
-		const sky = skyStateFromAlt(_sunAlt);
-
-		// Zenith / horizon colour pairs per sky state
-		const ZENITH: Record<string, string> = {
-			day:           "#3a7fc1",
-			civil:         "#1a1060",
-			nautical:      "#080520",
-			astronomical:  "#04030f",
-			night:         "#020209",
-		};
-		const HORIZ: Record<string, string> = {
-			day:           "#b0c8e8",
-			civil:         "#c84822",
-			nautical:      "#331144",
-			astronomical:  "#110820",
-			night:         "#020209",
-		};
-
-		// Full-canvas sky gradient (zenith→horizon)
-		const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
-		skyGrad.addColorStop(0,   ZENITH[sky]);
-		skyGrad.addColorStop(1,   HORIZ[sky]);
-		ctx.fillStyle = skyGrad;
-		ctx.fillRect(0, 0, W, H);
-
-		// Directional sun glow at the horizon — only during twilight/day
-		if (sky !== "night" && sky !== "astronomical") {
-			const sunScreenX = W / 2 + Math.sin((_sunAz - state.camera.az) * Math.PI / 180) * W * 0.6;
-			const r = Math.max(W, H) * 0.9;
-			const glowGrad = ctx.createRadialGradient(sunScreenX, H, 0, sunScreenX, H, r);
-			const glowAlpha = sky === "day" ? 0.28 : sky === "civil" ? 0.45 : 0.2;
-			const glowColor = sky === "day" ? `rgba(255,200,100,${glowAlpha})` : `rgba(255,90,30,${glowAlpha})`;
-			glowGrad.addColorStop(0, glowColor);
-			glowGrad.addColorStop(1, "rgba(0,0,0,0)");
-			ctx.fillStyle = glowGrad;
-			ctx.fillRect(0, 0, W, H);
-		}
-	}
+	// Live RA/Dec for solar bodies (id → {ra, dec}), refreshed each frame so the
+	// hover ring tracks moving objects instead of using stale click-time coordinates.
+	const _liveRaDec = new Map<number, { ra: number; dec: number }>();
 
 	function drawGround(sunAlt: number) {
 		const N = 180;
@@ -666,8 +667,11 @@ export function initRenderer(
 		_moonAz  = moonAltAz.az;
 		_moonPhaseVal = moonPhase(jd);
 
-		const skyState = skyStateFromAlt(_sunAlt);
-		const effMag = limitingMag(skyState, state.mag);
+		// Keep live RA/Dec for solar bodies so the hover ring tracks motion
+		_liveRaDec.set(-1, sunRD);
+		_liveRaDec.set(-2, moonRD);
+
+		const effMag = state.mag;
 
 		// Build catalog star geometry
 		let count = 0;
@@ -675,6 +679,7 @@ export function initRenderer(
 
 		for (let si = 0; si < stars.length; si++) {
 			const star = stars[si];
+			if (star.id === 0) continue; // Sol — catalog entry for our Sun, rendered separately
 			if (star.mag > effMag) continue;
 
 			const altAz = raDec_to_AltAz(star.ra, star.dec, lat, lon, gmst);
@@ -690,10 +695,9 @@ export function initRenderer(
 			cColBuf[count * 3 + 1] = preColors[si * 3 + 1];
 			cColBuf[count * 3 + 2] = preColors[si * 3 + 2];
 
-			// Logarithmic size: dramatic range from faint to bright
-			const norm = Math.max(0, (state.mag - star.mag) / state.mag);
+			const norm = Math.min(1, Math.max(0, (state.mag - star.mag) / 8));
 			const tw = 0.93 + Math.sin(t * 0.013 + star.id * 0.85) * 0.07;
-			cSizBuf[count] = dpr * Math.min(32, (3 + 18 * norm ** 1.6) * tw);
+			cSizBuf[count] = dpr * Math.min(12, (1.5 + 9 * norm ** 1.4) * tw);
 
 			if (star.hip) hipToIdx.set(star.hip, count);
 			_visAlt[count] = altAz.alt;
@@ -729,13 +733,43 @@ export function initRenderer(
 			lnPosAttr.needsUpdate = true;
 		}
 
+		// Planets — geometry must be updated before three.render()
+		const planets = computePlanets(jd);
+		let plCount = 0;
+		for (const pl of planets) {
+			const altAz = raDec_to_AltAz(pl.ra, pl.dec, lat, lon, gmst);
+			if (altAz.alt < -0.8) continue;
+			if (pl.mag > state.mag) continue;
+
+			const altR = (altAz.alt * Math.PI) / 180;
+			const azR  = (altAz.az  * Math.PI) / 180;
+			plPosBuf[plCount * 3]     = Math.cos(altR) * Math.sin(azR);
+			plPosBuf[plCount * 3 + 1] = Math.sin(altR);
+			plPosBuf[plCount * 3 + 2] = -Math.cos(altR) * Math.cos(azR);
+
+			const hex = bvToColor(pl.ci);
+			plColBuf[plCount * 3]     = Number.parseInt(hex.slice(1, 3), 16) / 255;
+			plColBuf[plCount * 3 + 1] = Number.parseInt(hex.slice(3, 5), 16) / 255;
+			plColBuf[plCount * 3 + 2] = Number.parseInt(hex.slice(5, 7), 16) / 255;
+
+			const norm = Math.min(1, Math.max(0, (state.mag - pl.mag) / 8));
+			plSizBuf[plCount] = dpr * Math.min(12, 1.5 + 9 * norm ** 1.4);
+
+			_liveRaDec.set(pl.id, { ra: pl.ra, dec: pl.dec });
+			plCount++;
+		}
+		plGeo.setDrawRange(0, plCount);
+		plPosAttr.needsUpdate = true;
+		plColAttr.needsUpdate = true;
+		plSizAttr.needsUpdate = true;
+
 		// Background stars twinkling (time in ms, same scale as original)
 		bgMat.uniforms.uTime.value = t;
 
 		// Render 3D scene
 		three.render(scene, camera);
 
-		// Screen positions from cached first-pass data (no AltAz recompute)
+		// Screen positions for hit detection (uses already-computed buffer positions)
 		const newVisible: VisibleStar[] = [];
 		{
 			const sc = { x: 0, y: 0 };
@@ -752,15 +786,53 @@ export function initRenderer(
 				}
 			}
 		}
+		// Planet screen positions for hit detection
+		{
+			let pi = 0;
+			for (const pl of planets) {
+				const altAz = raDec_to_AltAz(pl.ra, pl.dec, lat, lon, gmst);
+				if (altAz.alt < -0.8 || pl.mag > state.mag) continue;
+				const bx = plPosBuf[pi * 3];
+				const by = plPosBuf[pi * 3 + 1];
+				const bz = plPosBuf[pi * 3 + 2];
+				if (project(bx, by, bz, _sc)) {
+					newVisible.push({
+						star: { id: pl.id, hip: pl.id, ra: pl.ra, dec: pl.dec, mag: pl.mag, proper: pl.name, ci: pl.ci, phase: pl.phase, distAU: pl.distAU },
+						x: _sc.x, y: _sc.y,
+						altAz,
+					});
+				}
+				pi++;
+			}
+		}
+
+		// Sun and Moon as clickable entries
+		if (state.showSun && _sunAlt > -0.8) {
+			const altR = (_sunAlt * Math.PI) / 180;
+			const azR  = (_sunAz  * Math.PI) / 180;
+			if (project(Math.cos(altR) * Math.sin(azR), Math.sin(altR), -Math.cos(altR) * Math.cos(azR), _sc)) {
+				newVisible.push({ star: { id: -1, hip: -1, ra: sunRD.ra, dec: sunRD.dec, mag: -26.74, proper: "Sun", spect: "G2V", ci: 0.63, distAU: sunDistanceAU(jd) }, x: _sc.x, y: _sc.y, altAz: { alt: _sunAlt, az: _sunAz } });
+			}
+		}
+		if (state.showMoon && _moonAlt > -0.8) {
+			const altR = (_moonAlt * Math.PI) / 180;
+			const azR  = (_moonAz  * Math.PI) / 180;
+			if (project(Math.cos(altR) * Math.sin(azR), Math.sin(altR), -Math.cos(altR) * Math.cos(azR), _sc)) {
+				const moonIllum = _moonPhaseVal;
+				const moonMag = -12.74 + 2.5 * Math.log10(1 / Math.max(0.001, moonIllum));
+				const moonDistAU = moonDistanceKm(jd) / 149597870.7;
+				newVisible.push({ star: { id: -2, hip: -2, ra: moonRD.ra, dec: moonRD.dec, mag: moonMag, proper: "Moon", ci: 0.63, phase: moonIllum, distAU: moonDistAU }, x: _sc.x, y: _sc.y, altAz: { alt: _moonAlt, az: _moonAz } });
+			}
+		}
+
 		visibleStars = newVisible;
 
 		// 2D overlay
 		ctx.clearRect(0, 0, W, H);
-		drawSky(state);
 		drawSun(state);
 		drawMoon(state);
 		drawGround(_sunAlt);
-		drawHoverRing(t);
+		drawHoverRing(t, lat, lon, gmst);
 		drawStarLabels(state);
 		drawCardinals();
 		rebuildConstLabels(state);
@@ -773,8 +845,9 @@ export function initRenderer(
 			let best: VisibleStar | null = null;
 			let bd = 18;
 			for (const s of visibleStars) {
+				const hitR = s.star.id === -1 || s.star.id === -2 ? 24 : 18;
 				const d = Math.hypot(mx - s.x, my - s.y);
-				if (d < bd) {
+				if (d < hitR && d < bd) {
 					bd = d;
 					best = s;
 				}
