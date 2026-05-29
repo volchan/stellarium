@@ -8,7 +8,7 @@ import { useTelemetryStore } from "@/stores/telemetry";
 import { useUiStore } from "@/stores/ui";
 import { onMounted, onUnmounted, ref } from "vue";
 import CompassBar from "./CompassBar.vue";
-import DisconnectOverlay from "./DisconnectOverlay.vue";
+import PositionSetup from "./PositionSetup.vue";
 import SettingsPanel from "./SettingsPanel.vue";
 import StarCard from "./StarCard.vue";
 import StarTooltip from "./StarTooltip.vue";
@@ -222,7 +222,7 @@ defineExpose({ renderer: () => renderer });
     <StarTooltip />
     <SettingsPanel :stars-count="starsCount" :consts-count="constsCount" />
     <StarCard />
-    <DisconnectOverlay />
+    <PositionSetup />
   </div>
 </template>
 
