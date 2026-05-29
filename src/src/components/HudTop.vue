@@ -39,9 +39,7 @@ function formatLon(lon: number): string {
 <template>
   <header class="hud-top">
     <div class="hud-brand">
-      <svg class="brand-icon" viewBox="0 0 16 16" fill="none">
-        <path d="M8 1.5L9.54 6.46H14.74L10.6 9.41L12.14 14.36L8 11.41L3.86 14.36L5.4 9.41L1.26 6.46H6.46L8 1.5Z" fill="currentColor"/>
-      </svg>
+      <img class="brand-icon" src="/icon.svg" alt="" aria-hidden="true" />
       Stellarium
     </div>
 
@@ -128,7 +126,7 @@ function formatLon(lon: number): string {
   color: var(--muted);
 }
 
-.brand-icon { width: 16px; height: 16px; opacity: 0.55; flex: none; }
+.brand-icon { width: 18px; height: 18px; flex: none; }
 
 .hud-clock-wrap {
   display: flex;
