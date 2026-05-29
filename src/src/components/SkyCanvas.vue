@@ -6,7 +6,7 @@ import type { RendererHandle } from "@/lib/renderer";
 import { useSettingsStore } from "@/stores/settings";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { useUiStore } from "@/stores/ui";
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import CompassBar from "./CompassBar.vue";
 import PositionSetup from "./PositionSetup.vue";
 import SearchBar from "./SearchBar.vue";
@@ -26,6 +26,12 @@ const starsCount = ref(0);
 const constsCount = ref(0);
 
 let renderer: RendererHandle | null = null;
+
+// Keep renderer in sync with ui store so search/external selections show the hover ring
+watch(() => ui.pinnedStar, (s) => {
+	renderer?.setPinned(s);
+	if (s) positionCard(s.x, s.y);
+});
 
 function getState(): AppState {
 	return {
@@ -74,6 +80,20 @@ function onMouseLeave() {
 	if (canvasRef.value) canvasRef.value.style.cursor = "crosshair";
 }
 
+function positionCard(sx: number, sy: number) {
+	if (window.innerWidth < 640) return;
+	const cardEl = document.querySelector<HTMLElement>(".star-card");
+	if (!cardEl) return;
+	const CARD_W = 360;
+	const CARD_H = 460;
+	const M = 10;
+	const x = Math.max(M, Math.min(window.innerWidth - CARD_W - M, sx + 24));
+	const y = Math.max(52, Math.min(window.innerHeight - 52 - CARD_H, sy - CARD_H / 2));
+	cardEl.style.left = `${x}px`;
+	cardEl.style.top = `${y}px`;
+	cardEl.style.bottom = "auto";
+}
+
 function onClick(e: MouseEvent) {
 	if (!canvasRef.value || !renderer || didDrag) return;
 	const r = canvasRef.value.getBoundingClientRect();
@@ -81,21 +101,6 @@ function onClick(e: MouseEvent) {
 	if (s) {
 		renderer.setPinned(s);
 		ui.pinnedStar = s;
-
-		// Position card near star (desktop)
-		if (window.innerWidth >= 640) {
-			const cardEl = document.querySelector<HTMLElement>(".star-card");
-			if (cardEl) {
-				const CARD_W = 360;
-				const CARD_H = 460;
-				const M = 10;
-				const x = Math.max(M, Math.min(window.innerWidth - CARD_W - M, s.x + 24));
-				const y = Math.max(52, Math.min(window.innerHeight - 52 - CARD_H, s.y - CARD_H / 2));
-				cardEl.style.left = `${x}px`;
-				cardEl.style.top = `${y}px`;
-				cardEl.style.bottom = "auto";
-			}
-		}
 	}
 }
 
