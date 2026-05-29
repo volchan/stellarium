@@ -67,10 +67,7 @@ function formatCoords(lat: number, lon: number): string {
 
 <template>
   <div :class="['position-setup', !ui.coordsSet ? 'visible' : '']">
-    <svg class="ps-icon" width="36" height="36" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
-      <path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
+    <img class="ps-icon" src="/icon.svg" alt="" aria-hidden="true" />
     <div class="ps-title">Set Observer Position</div>
     <div class="ps-sub">
       Enter your coordinates to render the sky at your location.
@@ -145,7 +142,7 @@ function formatCoords(lat: number, lon: number): string {
 }
 .position-setup.visible { opacity: 1; pointer-events: auto; }
 
-.ps-icon { color: var(--accent); opacity: 0.7; flex: none; }
+.ps-icon { width: 52px; height: 52px; flex: none; }
 .ps-title { font-size: 20px; font-weight: 700; color: var(--fg); text-align: center; letter-spacing: -0.01em; flex: none; }
 .ps-sub {
   font-size: 13px; color: var(--muted);
