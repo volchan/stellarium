@@ -39,6 +39,14 @@ const props = defineProps<{
         <span class="toggle-text">Star labels</span>
         <Switch v-model="settings.starLabels" />
       </div>
+      <div class="toggle-row">
+        <span class="toggle-text">Sun</span>
+        <Switch v-model="settings.showSun" />
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-text">Moon</span>
+        <Switch v-model="settings.showMoon" />
+      </div>
 
     </div>
 

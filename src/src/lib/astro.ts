@@ -104,6 +104,88 @@ export function gnomonic(
 	return { x: screenX, y: screenY };
 }
 
+// ── Sun (Meeus Ch. 25 abridged, error < 0.01°) ──────────
+
+function norm360(x: number): number {
+	return ((x % 360) + 360) % 360;
+}
+
+export function sunRaDec(jd: number): { ra: number; dec: number } {
+	const n = jd - 2451545.0;
+	const L = norm360(280.460 + 0.9856474 * n);
+	const g = norm360(357.528 + 0.9856003 * n) * DEG;
+	const lambda = (L + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * DEG;
+	const eps = (23.439 - 0.0000004 * n) * DEG;
+	const ra = (Math.atan2(Math.cos(eps) * Math.sin(lambda), Math.cos(lambda)) * RAD + 360) % 360 / 15;
+	const dec = Math.asin(Math.sin(eps) * Math.sin(lambda)) * RAD;
+	return { ra, dec };
+}
+
+// ── Moon (Meeus Ch. 47 abridged, error < 0.3°) ──────────
+
+export function moonRaDec(jd: number): { ra: number; dec: number } {
+	const T = (jd - 2451545.0) / 36525;
+	const Lp = norm360(218.3164477 + 481267.88123421 * T);
+	const D  = norm360(297.8501921 + 445267.1114034  * T) * DEG;
+	const M  = norm360(357.5291092 + 35999.0502909   * T) * DEG;
+	const Mp = norm360(134.9633964 + 477198.8675055  * T) * DEG;
+	const F  = norm360(93.2720950  + 483202.0175233  * T) * DEG;
+
+	const lon = Lp
+		+ 6.289 * Math.sin(Mp)
+		- 1.274 * Math.sin(2 * D - Mp)
+		+ 0.658 * Math.sin(2 * D)
+		- 0.214 * Math.sin(2 * Mp)
+		- 0.186 * Math.sin(M)
+		- 0.114 * Math.sin(2 * F);
+
+	const lat =
+		  5.128 * Math.sin(F)
+		+ 0.281 * Math.sin(Mp + F)
+		- 0.277 * Math.sin(Mp - F)
+		- 0.173 * Math.sin(2 * D - F)
+		- 0.055 * Math.sin(2 * D - Mp + F);
+
+	const eps = (23.439 - 0.0000004 * (jd - 2451545.0)) * DEG;
+	const lonR = lon * DEG;
+	const latR = lat * DEG;
+
+	const x = Math.cos(latR) * Math.cos(lonR);
+	const y = Math.cos(eps) * Math.cos(latR) * Math.sin(lonR) - Math.sin(eps) * Math.sin(latR);
+	const z = Math.sin(eps) * Math.cos(latR) * Math.sin(lonR) + Math.cos(eps) * Math.sin(latR);
+
+	const ra = (Math.atan2(y, x) * RAD + 360) % 360 / 15;
+	const dec = Math.asin(Math.max(-1, Math.min(1, z))) * RAD;
+	return { ra, dec };
+}
+
+export function moonPhase(jd: number): number {
+	const T = (jd - 2451545.0) / 36525;
+	const D = norm360(297.8501921 + 445267.1114034 * T) * DEG;
+	// phase 0=new, 0.5=full
+	return (1 - Math.cos(2 * D)) / 2;
+}
+
+// ── Sky state ────────────────────────────────────────────
+
+export type SkyState = "day" | "civil" | "nautical" | "astronomical" | "night";
+
+export function skyStateFromAlt(sunAlt: number): SkyState {
+	if (sunAlt >   0) return "day";
+	if (sunAlt >  -6) return "civil";
+	if (sunAlt > -12) return "nautical";
+	if (sunAlt > -18) return "astronomical";
+	return "night";
+}
+
+export function limitingMag(skyState: SkyState, userMag: number): number {
+	if (skyState === "night")        return userMag;
+	if (skyState === "astronomical") return Math.min(userMag, 5.5);
+	if (skyState === "nautical")     return 4.0;
+	if (skyState === "civil")        return 2.0;
+	return 0;
+}
+
 export function bvToColor(ci: number | undefined): string {
 	if (ci === undefined || ci === null || Number.isNaN(ci)) return "#FFFFFF";
 	if (ci < -0.3) return "#9BB0FF";

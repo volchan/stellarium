@@ -12,15 +12,27 @@ import {
 	Vector3,
 	WebGLRenderer,
 } from "three";
-import { bvToColor, jdToGMST, raDec_to_AltAz, zuluToJD } from "./astro";
+import {
+	bvToColor,
+	jdToGMST,
+	limitingMag,
+	moonPhase,
+	moonRaDec,
+	raDec_to_AltAz,
+	skyStateFromAlt,
+	sunRaDec,
+	zuluToJD,
+} from "./astro";
 import type { Constellation, Star } from "./catalog";
 
 export interface AppState {
 	constLines: boolean;
 	constNames: boolean;
 	starLabels: boolean;
-mag: number;
+	mag: number;
 	fov: number;
+	showSun: boolean;
+	showMoon: boolean;
 	telemetry: {
 		lat: number;
 		lon: number;
@@ -326,7 +338,54 @@ export function initRenderer(
 		ctx.restore();
 	}
 
-	function drawGround() {
+	// Sky state, updated each frame
+	let _sunAlt = -90;
+	let _sunAz  = 0;
+	let _moonAlt = -90;
+	let _moonAz  = 0;
+	let _moonPhaseVal = 0;
+
+	function drawSky(state: AppState) {
+		const sky = skyStateFromAlt(_sunAlt);
+
+		// Zenith / horizon colour pairs per sky state
+		const ZENITH: Record<string, string> = {
+			day:           "#3a7fc1",
+			civil:         "#1a1060",
+			nautical:      "#080520",
+			astronomical:  "#04030f",
+			night:         "#020209",
+		};
+		const HORIZ: Record<string, string> = {
+			day:           "#b0c8e8",
+			civil:         "#c84822",
+			nautical:      "#331144",
+			astronomical:  "#110820",
+			night:         "#020209",
+		};
+
+		// Full-canvas sky gradient (zenith→horizon)
+		const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+		skyGrad.addColorStop(0,   ZENITH[sky]);
+		skyGrad.addColorStop(1,   HORIZ[sky]);
+		ctx.fillStyle = skyGrad;
+		ctx.fillRect(0, 0, W, H);
+
+		// Directional sun glow at the horizon — only during twilight/day
+		if (sky !== "night" && sky !== "astronomical") {
+			const sunScreenX = W / 2 + Math.sin((_sunAz - state.camera.az) * Math.PI / 180) * W * 0.6;
+			const r = Math.max(W, H) * 0.9;
+			const glowGrad = ctx.createRadialGradient(sunScreenX, H, 0, sunScreenX, H, r);
+			const glowAlpha = sky === "day" ? 0.28 : sky === "civil" ? 0.45 : 0.2;
+			const glowColor = sky === "day" ? `rgba(255,200,100,${glowAlpha})` : `rgba(255,90,30,${glowAlpha})`;
+			glowGrad.addColorStop(0, glowColor);
+			glowGrad.addColorStop(1, "rgba(0,0,0,0)");
+			ctx.fillStyle = glowGrad;
+			ctx.fillRect(0, 0, W, H);
+		}
+	}
+
+	function drawGround(sunAlt: number) {
 		const N = 180;
 		const arc: { x: number; y: number }[] = [];
 		for (let i = 0; i < N; i++) {
@@ -340,7 +399,6 @@ export function initRenderer(
 		ctx.setLineDash([]);
 
 		if (arc.length < 2) {
-			// Check if zenith is behind camera (looking straight down)
 			project(0, 1, 0, _sc);
 			if (_proj.z >= 1.0) {
 				ctx.fillStyle = "rgba(8, 13, 9, 0.96)";
@@ -355,7 +413,7 @@ export function initRenderer(
 
 		const grad = ctx.createLinearGradient(0, yMid - 6, 0, yMid + 70);
 		grad.addColorStop(0, "rgba(8, 13, 9, 0)");
-		grad.addColorStop(0.22, "rgba(8, 13, 9, 0.72)");
+		grad.addColorStop(0.22, "rgba(8, 13, 9, 0.82)");
 		grad.addColorStop(1, "rgba(8, 13, 9, 0.97)");
 
 		ctx.beginPath();
@@ -368,15 +426,112 @@ export function initRenderer(
 		ctx.fillStyle = grad;
 		ctx.fill();
 
-		// Atmospheric horizon glow
+		// Horizon line colour shifts with twilight
+		const horizColor = sunAlt > 0
+			? "rgba(140,180,255,0.35)"
+			: sunAlt > -6
+				? "rgba(255,120,50,0.4)"
+				: "rgba(50,120,210,0.22)";
+
 		ctx.beginPath();
 		ctx.moveTo(-2, arc[0].y);
 		for (const p of arc) ctx.lineTo(p.x, p.y);
 		ctx.lineTo(W + 2, arc[arc.length - 1].y);
-		ctx.strokeStyle = "rgba(50, 120, 210, 0.22)";
+		ctx.strokeStyle = horizColor;
 		ctx.lineWidth = 1.5;
 		ctx.stroke();
 
+		ctx.restore();
+	}
+
+	function drawSun(state: AppState) {
+		if (!state.showSun || _sunAlt < -0.8) return;
+		const altR = (_sunAlt * Math.PI) / 180;
+		const azR  = (_sunAz  * Math.PI) / 180;
+		if (!project(Math.cos(altR) * Math.sin(azR), Math.sin(altR), -Math.cos(altR) * Math.cos(azR), _sc)) return;
+
+		const { x, y } = _sc;
+		ctx.save();
+
+		// Outer corona
+		const corona = ctx.createRadialGradient(x, y, 0, x, y, 90);
+		corona.addColorStop(0,   "rgba(255,255,220,0.14)");
+		corona.addColorStop(1,   "rgba(255,255,220,0)");
+		ctx.fillStyle = corona;
+		ctx.beginPath(); ctx.arc(x, y, 90, 0, 6.2832); ctx.fill();
+
+		// Mid glare
+		const glare = ctx.createRadialGradient(x, y, 0, x, y, 42);
+		glare.addColorStop(0,   "rgba(255,255,200,0.28)");
+		glare.addColorStop(1,   "rgba(255,255,200,0)");
+		ctx.fillStyle = glare;
+		ctx.beginPath(); ctx.arc(x, y, 42, 0, 6.2832); ctx.fill();
+
+		// Disc
+		ctx.fillStyle = _sunAlt > 5 ? "#FFF8E8" : "#FFD080";
+		ctx.beginPath(); ctx.arc(x, y, 14, 0, 6.2832); ctx.fill();
+
+		ctx.restore();
+	}
+
+	function drawMoon(state: AppState) {
+		if (!state.showMoon || _moonAlt < -0.8) return;
+		const altR = (_moonAlt * Math.PI) / 180;
+		const azR  = (_moonAz  * Math.PI) / 180;
+		if (!project(Math.cos(altR) * Math.sin(azR), Math.sin(altR), -Math.cos(altR) * Math.cos(azR), _sc)) return;
+
+		const { x, y } = _sc;
+		const R = 11;
+		ctx.save();
+
+		// Subtle glow
+		const glow = ctx.createRadialGradient(x, y, 0, x, y, R * 2.4);
+		glow.addColorStop(0,   "rgba(220,215,200,0.18)");
+		glow.addColorStop(1,   "rgba(220,215,200,0)");
+		ctx.fillStyle = glow;
+		ctx.beginPath(); ctx.arc(x, y, R * 2.4, 0, 6.2832); ctx.fill();
+
+		// Full disc
+		ctx.fillStyle = "#D8D0C0";
+		ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.fill();
+
+		// Phase shadow mask
+		// phase: 0=new(dark), 0.5=full(bright), 1=new again
+		// illuminated fraction goes 0→1→0 as phase 0→0.5→1
+		const phase = _moonPhaseVal;   // 0–1
+		const illum = (1 - Math.cos(phase * 2 * Math.PI)) / 2; // 0=new, 1=full
+
+		ctx.globalCompositeOperation = "source-atop";
+
+		// Clip to moon disc
+		ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.clip();
+
+		// Dark side: always fill the half that faces away from Sun
+		// For waxing (phase<0.5): dark on left, light on right → ellipse x-radius lerps R→0
+		// For waning (phase>0.5): dark on right, light on left → same but mirrored
+		const waxing = phase < 0.5;
+		const terminatorX = waxing
+			? R - illum * 2 * R   // from full-dark (R) to full-light (−R) as illum 0→1
+			: illum * 2 * R - R;  // from full-light to full-dark
+
+		// Dark fill: the appropriate half
+		ctx.fillStyle = "rgba(0,0,0,0.88)";
+		if (waxing) {
+			// dark left half
+			ctx.fillRect(x - R, y - R, R, R * 2);
+			// terminator ellipse to blend the edge
+			ctx.beginPath();
+			ctx.ellipse(x, y, Math.abs(terminatorX), R, 0, Math.PI / 2, -Math.PI / 2);
+			ctx.fill();
+		} else {
+			// dark right half
+			ctx.fillRect(x, y - R, R, R * 2);
+			ctx.beginPath();
+			ctx.ellipse(x, y, Math.abs(terminatorX), R, 0, -Math.PI / 2, Math.PI / 2);
+			ctx.fill();
+		}
+
+		ctx.globalCompositeOperation = "source-over";
 		ctx.restore();
 	}
 
@@ -499,13 +654,28 @@ export function initRenderer(
 		const gmst = jdToGMST(jd);
 		const { lat, lon } = state.telemetry;
 
+		// Sun + Moon positions
+		const sunRD   = sunRaDec(jd);
+		const sunAltAz = raDec_to_AltAz(sunRD.ra, sunRD.dec, lat, lon, gmst);
+		_sunAlt = sunAltAz.alt;
+		_sunAz  = sunAltAz.az;
+
+		const moonRD  = moonRaDec(jd);
+		const moonAltAz = raDec_to_AltAz(moonRD.ra, moonRD.dec, lat, lon, gmst);
+		_moonAlt = moonAltAz.alt;
+		_moonAz  = moonAltAz.az;
+		_moonPhaseVal = moonPhase(jd);
+
+		const skyState = skyStateFromAlt(_sunAlt);
+		const effMag = limitingMag(skyState, state.mag);
+
 		// Build catalog star geometry
 		let count = 0;
 		hipToIdx.clear();
 
 		for (let si = 0; si < stars.length; si++) {
 			const star = stars[si];
-			if (star.mag > state.mag) continue;
+			if (star.mag > effMag) continue;
 
 			const altAz = raDec_to_AltAz(star.ra, star.dec, lat, lon, gmst);
 			if (altAz.alt < -5) continue;
@@ -586,7 +756,10 @@ export function initRenderer(
 
 		// 2D overlay
 		ctx.clearRect(0, 0, W, H);
-		drawGround();
+		drawSky(state);
+		drawSun(state);
+		drawMoon(state);
+		drawGround(_sunAlt);
 		drawHoverRing(t);
 		drawStarLabels(state);
 		drawCardinals();

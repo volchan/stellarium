@@ -32,6 +32,8 @@ function getState(): AppState {
 		starLabels: settings.starLabels,
 		mag: settings.mag,
 		fov: settings.fov,
+		showSun: settings.showSun,
+		showMoon: settings.showMoon,
 		telemetry: {
 			lat: telemetry.lat,
 			lon: telemetry.lon,
