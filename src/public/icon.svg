@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#0d1530"/>
+      <stop offset="100%" stop-color="#07080f"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#4a9eff" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#4a9eff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#ffffff"/>
+      <stop offset="40%"  stop-color="#c8e0ff"/>
+      <stop offset="100%" stop-color="#4a9eff"/>
+    </radialGradient>
+    <filter id="blur-glow">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="url(#bg)"/>
+
+  <!-- Outer glow ring -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="#4a9eff" stroke-width="1" stroke-opacity="0.18"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#4a9eff" stroke-width="0.5" stroke-opacity="0.10"/>
+
+  <!-- Cardinal tick marks -->
+  <g stroke="#4a9eff" stroke-opacity="0.5" stroke-linecap="round">
+    <line x1="256" y1="44"  x2="256" y2="66"  stroke-width="3"/>
+    <line x1="256" y1="446" x2="256" y2="468" stroke-width="3"/>
+    <line x1="44"  y1="256" x2="66"  y2="256" stroke-width="3"/>
+    <line x1="446" y1="256" x2="468" y2="256" stroke-width="3"/>
+    <!-- diagonal ticks -->
+    <line x1="105" y1="105" x2="119" y2="119" stroke-width="1.5" stroke-opacity="0.25"/>
+    <line x1="393" y1="105" x2="407" y2="119" stroke-width="1.5" stroke-opacity="0.25"/>
+    <line x1="105" y1="407" x2="119" y2="393" stroke-width="1.5" stroke-opacity="0.25"/>
+    <line x1="393" y1="393" x2="407" y2="407" stroke-width="1.5" stroke-opacity="0.25"/>
+  </g>
+
+  <!-- 8-point star — two overlapping 4-point stars -->
+  <!-- Outer 4-point (N/S/E/W) — sharp diamond points -->
+  <polygon
+    points="256,82 275,238 256,256 237,238"
+    fill="#4a9eff" fill-opacity="0.90"
+  />
+  <polygon
+    points="256,430 237,274 256,256 275,274"
+    fill="#4a9eff" fill-opacity="0.90"
+  />
+  <polygon
+    points="82,256 238,237 256,256 238,275"
+    fill="#4a9eff" fill-opacity="0.90"
+  />
+  <polygon
+    points="430,256 274,275 256,256 274,237"
+    fill="#4a9eff" fill-opacity="0.90"
+  />
+
+  <!-- Rotated 4-point (NE/SW etc) — shorter, dimmer -->
+  <polygon
+    points="256,128 270,242 256,256 242,242"
+    fill="#7ab8ff" fill-opacity="0.45"
+    transform="rotate(45 256 256)"
+  />
+  <polygon
+    points="256,384 242,270 256,256 270,270"
+    fill="#7ab8ff" fill-opacity="0.45"
+    transform="rotate(45 256 256)"
+  />
+  <polygon
+    points="128,256 242,242 256,256 242,270"
+    fill="#7ab8ff" fill-opacity="0.45"
+    transform="rotate(45 256 256)"
+  />
+  <polygon
+    points="384,256 270,270 256,256 270,242"
+    fill="#7ab8ff" fill-opacity="0.45"
+    transform="rotate(45 256 256)"
+  />
+
+  <!-- Center glow blob -->
+  <circle cx="256" cy="256" r="52" fill="url(#glow)" filter="url(#blur-glow)"/>
+
+  <!-- Center star core -->
+  <circle cx="256" cy="256" r="16" fill="url(#core)"/>
+  <circle cx="256" cy="256" r="7"  fill="#ffffff"/>
+
+  <!-- Small accent stars scattered -->
+  <circle cx="160" cy="140" r="2.5" fill="#ffffff" fill-opacity="0.7"/>
+  <circle cx="370" cy="155" r="1.8" fill="#c8e0ff" fill-opacity="0.6"/>
+  <circle cx="340" cy="380" r="2.2" fill="#ffffff" fill-opacity="0.55"/>
+  <circle cx="138" cy="360" r="1.6" fill="#c8e0ff" fill-opacity="0.5"/>
+  <circle cx="195" cy="410" r="1.4" fill="#ffffff" fill-opacity="0.4"/>
+  <circle cx="400" cy="310" r="1.8" fill="#ffffff" fill-opacity="0.45"/>
+  <circle cx="420" cy="180" r="1.4" fill="#c8e0ff" fill-opacity="0.4"/>
+  <circle cx="100" cy="220" r="1.6" fill="#ffffff" fill-opacity="0.4"/>
+</svg>
