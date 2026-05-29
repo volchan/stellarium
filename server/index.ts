@@ -6,10 +6,10 @@ const port = Number(process.env.PORT ?? 3000);
 const SECURITY_HEADERS = {
 	"Content-Security-Policy": [
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline' https://aladin.cds.unistra.fr",
+		"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://aladin.cds.unistra.fr",
 		"style-src 'self' 'unsafe-inline' https://aladin.cds.unistra.fr",
 		"img-src 'self' data: blob: https://*.unistra.fr https://*.u-strasbg.fr https://alasky.cds.unistra.fr https://irsa.ipac.caltech.edu",
-		"connect-src 'self' https://*.unistra.fr https://*.u-strasbg.fr https://alasky.cds.unistra.fr https://irsa.ipac.caltech.edu https://simbad.u-strasbg.fr https://simbad.cds.unistra.fr https://raw.githubusercontent.com",
+		"connect-src 'self' data: https://*.unistra.fr https://*.u-strasbg.fr https://alasky.cds.unistra.fr https://irsa.ipac.caltech.edu https://simbad.u-strasbg.fr https://simbad.cds.unistra.fr https://raw.githubusercontent.com",
 		"font-src 'self'",
 		"frame-src 'none'",
 		"object-src 'none'",
