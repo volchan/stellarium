@@ -33,6 +33,7 @@ function applyPosition(lat: number, lon: number, alt: number, hdg: number) {
 	telemetry.lon = lon;
 	telemetry.alt = alt;
 	telemetry.headingTrue = hdg;
+	telemetry.resetTime();
 	ui.camera.az = hdg;
 	ui.camera.alt = 30;
 	ui.coordsSet = true;
