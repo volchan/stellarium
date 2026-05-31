@@ -1,4 +1,4 @@
-name: CI / CD
+name: CI
 
 on:
   push:
@@ -83,23 +83,11 @@ jobs:
           path: storybook-test-results/
           retention-days: 7
 
-  # ── Deploy (main only, both tests green) ──────────────────────────────────
-
-  deploy:
-    name: Deploy to Dokploy
-    needs: [e2e, storybook]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Dokploy webhook
-        run: |
-          curl -fsSL -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}"
-
-  # ── Tag (short SHA, only after successful deploy) ─────────────────────────
+  # ── Tag (short SHA, only on main after both tests pass) ─────────────────────
 
   tag:
     name: Tag release
-    needs: [deploy]
+    needs: [e2e, storybook]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
