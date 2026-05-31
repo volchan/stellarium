@@ -38,10 +38,10 @@ function formatLon(lon: number): string {
 
 <template>
   <header class="hud-top">
-    <div class="hud-brand">
+    <button class="hud-brand" type="button" @click="emit('openForm')">
       <img class="brand-icon" src="/icon.svg" alt="" aria-hidden="true" />
       Stellarium
-    </div>
+    </button>
 
     <div v-if="ui.coordsSet" class="hud-clock-wrap">
       <div class="hud-clock" :class="{ 'clock-offset': !isLive }">
@@ -124,7 +124,13 @@ function formatLon(lon: number): string {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--motion-fast);
 }
+.hud-brand:hover { color: var(--fg); }
 
 .brand-icon { width: 18px; height: 18px; flex: none; }
 

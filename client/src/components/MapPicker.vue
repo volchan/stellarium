@@ -81,7 +81,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .map-picker {
   width: 100%;
-  height: 280px;
+  height: clamp(280px, 40vh, 480px);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
