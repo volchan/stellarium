@@ -7,10 +7,10 @@ const SECURITY_HEADERS = {
 	"Content-Security-Policy": [
 		"default-src 'self'",
 		"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://aladin.cds.unistra.fr",
-		"style-src 'self' 'unsafe-inline' https://aladin.cds.unistra.fr",
-		"img-src 'self' data: blob: https://*.unistra.fr https://*.u-strasbg.fr https://alasky.cds.unistra.fr https://irsa.ipac.caltech.edu",
+		"style-src 'self' 'unsafe-inline' https://aladin.cds.unistra.fr https://fonts.googleapis.com",
+		"img-src 'self' data: blob: https://*.unistra.fr https://*.u-strasbg.fr https://alasky.cds.unistra.fr https://irsa.ipac.caltech.edu https://*.basemaps.cartocdn.com",
 		"connect-src 'self' data: https://*.unistra.fr https://*.u-strasbg.fr https://alasky.cds.unistra.fr https://irsa.ipac.caltech.edu https://simbad.u-strasbg.fr https://simbad.cds.unistra.fr https://raw.githubusercontent.com",
-		"font-src 'self'",
+		"font-src 'self' https://fonts.gstatic.com",
 		"frame-src 'none'",
 		"object-src 'none'",
 		"base-uri 'self'",
