@@ -209,6 +209,7 @@ defineExpose({ renderer: () => renderer });
     <canvas
       ref="canvasRef"
       id="sky"
+      data-testid="sky-canvas"
       @mousemove="onMouseMove"
       @mouseleave="onMouseLeave"
       @click="onClick"

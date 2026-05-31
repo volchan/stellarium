@@ -179,7 +179,7 @@ function close() {
 </script>
 
 <template>
-  <div ref="cardRef" :class="['star-card', star ? 'visible' : '']">
+  <div ref="cardRef" :class="['star-card', star ? 'visible' : '']" data-testid="star-card">
 
     <!-- Header / drag handle -->
     <div
@@ -190,7 +190,7 @@ function close() {
       @pointerup="onHeadPointerUp"
     >
       <div class="sc-title">
-        <div class="sc-name">{{ star?.star.proper ?? star?.star.bf ?? (star?.star.hip ? `HIP ${star.star.hip}` : '—') }}</div>
+        <div class="sc-name" data-testid="star-name">{{ star?.star.proper ?? star?.star.bf ?? (star?.star.hip ? `HIP ${star.star.hip}` : '—') }}</div>
         <div class="sc-sub">
           <span v-if="star?.star.bf" class="sc-bf">{{ star.star.bf }}</span>
           <span v-if="star?.star.bf && star?.star.con" class="sc-dot">·</span>

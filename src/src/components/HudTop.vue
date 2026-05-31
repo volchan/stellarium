@@ -46,7 +46,7 @@ function formatLon(lon: number): string {
     <div v-if="ui.coordsSet" class="hud-clock-wrap">
       <div class="hud-clock" :class="{ 'clock-offset': !isLive }">
         <span class="clock-label">{{ clockMeta }}</span>
-        <span class="clock-value">{{ clockDisplay }}</span>
+        <span class="clock-value" data-testid="clock-display">{{ clockDisplay }}</span>
       </div>
     </div>
 

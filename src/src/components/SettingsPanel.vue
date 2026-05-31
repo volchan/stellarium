@@ -15,7 +15,7 @@ const props = defineProps<{
 </script>
 
 <template>
-  <aside :class="['settings-panel', ui.settingsOpen ? 'open' : '']">
+  <aside :class="['settings-panel', ui.settingsOpen ? 'open' : '']" data-testid="settings-panel">
     <div class="sp-header">
       <span class="sp-title">Settings</span>
       <button class="btn-icon" type="button" @click="ui.settingsOpen = false">
@@ -29,7 +29,7 @@ const props = defineProps<{
       <div class="sp-section-label">Display</div>
       <div class="toggle-row">
         <span class="toggle-text">Constellation lines</span>
-        <Switch v-model="settings.constLines" />
+        <Switch v-model="settings.constLines" data-testid="toggle-const-lines" />
       </div>
       <div class="toggle-row">
         <span class="toggle-text">Constellation names</span>

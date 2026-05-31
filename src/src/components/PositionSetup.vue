@@ -73,7 +73,7 @@ function formatCoords(lat: number, lon: number): string {
       Enter your coordinates to render the sky at your location.
     </div>
 
-    <form class="coord-form" autocomplete="off" @submit.prevent="onSubmit">
+    <form class="coord-form" data-testid="position-form" autocomplete="off" @submit.prevent="onSubmit">
       <div class="coord-fields">
         <div class="coord-field coord-field--full">
           <label class="coord-label" for="inp-label">Label <span class="coord-opt">(optional)</span></label>
@@ -97,7 +97,7 @@ function formatCoords(lat: number, lon: number): string {
         </div>
       </div>
       <div class="coord-actions">
-        <button class="btn-primary" type="submit">Render Sky</button>
+        <button class="btn-primary" data-testid="position-submit" type="submit">Render Sky</button>
       </div>
     </form>
 

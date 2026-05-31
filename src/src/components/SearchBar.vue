@@ -151,6 +151,7 @@ onUnmounted(() => window.removeEventListener("keydown", onGlobalKeydown));
           ref="inputRef"
           v-model="query"
           class="search-input"
+          data-testid="search-input"
           type="text"
           placeholder="Search stars, planets, constellations…"
           autocomplete="off"
@@ -160,11 +161,12 @@ onUnmounted(() => window.removeEventListener("keydown", onGlobalKeydown));
         <kbd class="search-esc" @click="close">Esc</kbd>
       </div>
 
-      <ul v-if="results.length > 0" class="search-results">
+      <ul v-if="results.length > 0" class="search-results" data-testid="search-results">
         <li
           v-for="(r, i) in results"
           :key="r.star.id + r.label"
           class="search-result"
+          data-testid="search-result"
           :class="{ active: i === activeIdx }"
           @click="selectResult(r)"
           @mouseenter="activeIdx = i"
