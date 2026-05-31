@@ -177,7 +177,7 @@ function formatCoords(lat: number, lon: number): string {
 .ps-title { font-size: 20px; font-weight: 700; color: var(--fg); text-align: center; letter-spacing: -0.01em; flex: none; }
 .ps-sub {
   font-size: 13px; color: var(--muted);
-  text-align: center; max-width: 340px;
+  text-align: center; max-width: 520px;
   line-height: 1.7;
   flex: none;
 }
@@ -209,7 +209,7 @@ function formatCoords(lat: number, lon: number): string {
   color: var(--fg);
 }
 
-.coord-form { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; flex: none; }
+.coord-form { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 16px; flex: none; }
 .coord-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .coord-field { display: flex; flex-direction: column; gap: 5px; }
 .coord-field--full { grid-column: span 2; }
@@ -242,7 +242,7 @@ function formatCoords(lat: number, lon: number): string {
 
 .saved-section {
   width: 100%;
-  max-width: 360px;
+  max-width: 520px;
   flex: none;
 }
 
