@@ -75,6 +75,6 @@ tasks:
     cmds:
       - |
         bun run storybook --ci --no-open &
-        trap "lsof -ti:6006 | xargs kill -9 2>/dev/null || true" EXIT 2 15
+        trap "lsof -ti:6006 | xargs kill -9 2>/dev/null || true" EXIT
         bunx wait-on tcp:6006 -t 60000
         bun run test:storybook
