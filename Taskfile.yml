@@ -73,7 +73,9 @@ tasks:
     desc: Run Storybook interaction tests (starts dev server, runs test-runner, stops server)
     deps: [playwright:install]
     cmds:
-      - bun run storybook --ci --no-open &
-      - bunx wait-on tcp:6006 -t 60000
-      - bun run test:storybook
-      - kill $(lsof -ti:6006) 2>/dev/null || true
+      - |
+        bun run storybook --ci --no-open &
+        SB_PID=$!
+        trap "kill $SB_PID 2>/dev/null || true" EXIT
+        bunx wait-on tcp:6006 -t 60000
+        bun run test:storybook
