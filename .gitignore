@@ -9,6 +9,7 @@ node_modules/
 
 # Build output and generated catalog data
 /dist/
+/storybook-static/
 
 # Raw catalog source data
 /data/
