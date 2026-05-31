@@ -75,7 +75,6 @@ tasks:
     cmds:
       - |
         bun run storybook --ci --no-open &
-        SB_PID=$!
-        trap "kill $SB_PID 2>/dev/null || true" EXIT
+        trap "lsof -ti:6006 | xargs kill -9 2>/dev/null || true" EXIT INT TERM
         bunx wait-on tcp:6006 -t 60000
         bun run test:storybook
