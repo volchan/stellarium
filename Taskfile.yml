@@ -43,3 +43,20 @@ tasks:
       - task: install
       - task: catalog
       - task: build
+
+  playwright:install:
+    desc: Install Playwright browsers + OS deps (skips if already installed)
+    cmds:
+      - bunx playwright install --with-deps chromium firefox
+      - touch .playwright-installed
+    status:
+      - test -f .playwright-installed
+
+  test:e2e:
+    desc: Run Playwright E2E tests (run 'task build' first if dist/ is missing)
+    deps: [playwright:install]
+    cmds:
+      - bun run test:e2e
+    preconditions:
+      - sh: "[ -f dist/index.html ]"
+        msg: "dist/ not built — run 'task build' first"
