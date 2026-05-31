@@ -6,7 +6,7 @@ import { computed } from "vue";
 const telemetry = useTelemetryStore();
 const ui = useUiStore();
 
-defineProps<{
+const props = defineProps<{
 	clockDisplay: string;
 	clockLabel: string;
 }>();
@@ -20,7 +20,7 @@ const isLive = computed(() => telemetry.timeOffset === 0 && telemetry.timeSpeed 
 const clockMeta = computed(() => {
 	if (telemetry.timeSpeed !== 1) return `${telemetry.timeSpeed}×`;
 	const s = Math.abs(telemetry.timeOffset);
-	if (s === 0) return "UTC";
+	if (s === 0) return props.clockLabel;
 	const sign = telemetry.timeOffset >= 0 ? "+" : "−";
 	if (s < 60) return `${sign}${Math.round(s)}s`;
 	if (s < 3600) return `${sign}${Math.round(s / 60)}m`;
