@@ -30,3 +30,11 @@ node_modules/
 Thumbs.db
 
 tmp/
+
+# Playwright
+/test-results/
+/playwright-report/
+.playwright-installed
+
+CLAUDE.md
+goals/
