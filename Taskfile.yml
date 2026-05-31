@@ -60,3 +60,20 @@ tasks:
     preconditions:
       - sh: "[ -f dist/index.html ]"
         msg: "dist/ not built — run 'task build' first"
+
+  storybook:
+    desc: Start Storybook dev server on port 6006
+    cmd: bun run storybook
+
+  storybook:build:
+    desc: Build Storybook static output to storybook-static/
+    cmd: bun run build-storybook
+
+  test:storybook:
+    desc: Run Storybook interaction tests (starts dev server, runs test-runner, stops server)
+    deps: [playwright:install]
+    cmds:
+      - bun run storybook --ci --no-open &
+      - bunx wait-on tcp:6006 -t 60000
+      - bun run test:storybook
+      - kill $(lsof -ti:6006) 2>/dev/null || true
