@@ -21,9 +21,9 @@ const serveData = {
 
 export default defineConfig({
 	plugins: [vue(), tailwindcss(), serveData],
-	root: "src",
+	root: "client",
 	resolve: {
-		alias: { "@": resolve(__dirname, "src/src") },
+		alias: { "@": resolve(__dirname, "client/src") },
 	},
 	build: {
 		outDir: "../dist",
