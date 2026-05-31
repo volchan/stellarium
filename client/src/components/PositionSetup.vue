@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MapPicker from "./MapPicker.vue";
 import { usePositionsStore } from "@/stores/positions";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { useUiStore } from "@/stores/ui";
@@ -13,14 +14,26 @@ const latInput = ref("");
 const lonInput = ref("");
 const altInput = ref("");
 const hdgInput = ref("");
+const showMap = ref(false);
 
 const hasSaved = computed(() => posStore.positions.length > 0);
+
+const parsedLat = computed(() => {
+	const v = Number.parseFloat(latInput.value);
+	return Number.isNaN(v) ? 48.8566 : v;
+});
+
+const parsedLon = computed(() => {
+	const v = Number.parseFloat(lonInput.value);
+	return Number.isNaN(v) ? 2.3522 : v;
+});
 
 function applyPosition(lat: number, lon: number, alt: number, hdg: number) {
 	telemetry.lat = lat;
 	telemetry.lon = lon;
 	telemetry.alt = alt;
 	telemetry.headingTrue = hdg;
+	telemetry.resetTime();
 	ui.camera.az = hdg;
 	ui.camera.alt = 30;
 	ui.coordsSet = true;
@@ -31,15 +44,21 @@ function onSubmit() {
 	const lon = Number.parseFloat(lonInput.value);
 	if (Number.isNaN(lat) || Number.isNaN(lon)) return;
 	const alt = Number.parseFloat(altInput.value) || 0;
-	const hdg = hdgInput.value !== ""
-		? ((Number.parseFloat(hdgInput.value) % 360) + 360) % 360
-		: telemetry.headingTrue;
+	const hdg =
+		hdgInput.value !== ""
+			? ((Number.parseFloat(hdgInput.value) % 360) + 360) % 360
+			: telemetry.headingTrue;
 
 	const rawLabel = labelInput.value.trim();
 	const label = rawLabel || `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
 
 	posStore.add({ label, lat, lon, alt, hdg });
 	applyPosition(lat, lon, alt, hdg);
+}
+
+function onMapPick({ lat, lon }: { lat: number; lon: number }) {
+	latInput.value = lat.toFixed(6);
+	lonInput.value = lon.toFixed(6);
 }
 
 function loadSaved(id: string) {
@@ -88,20 +107,32 @@ function formatCoords(lat: number, lon: number): string {
           <input v-model="lonInput" class="coord-inp" id="inp-lon" type="number" step="any" min="-180" max="180" placeholder="2.3522" required>
         </div>
         <div class="coord-field">
-          <label class="coord-label" for="inp-alt">Altitude (ft)</label>
+          <label class="coord-label" for="inp-alt">Altitude (ft) <span class="coord-opt">(optional)</span></label>
           <input v-model="altInput" class="coord-inp" id="inp-alt" type="number" step="1" min="0" max="60000" placeholder="0">
         </div>
         <div class="coord-field">
-          <label class="coord-label" for="inp-hdg">Heading (°)</label>
+          <label class="coord-label" for="inp-hdg">Heading (°) <span class="coord-opt">(optional)</span></label>
           <input v-model="hdgInput" class="coord-inp" id="inp-hdg" type="number" step="1" min="0" max="359" placeholder="0">
         </div>
       </div>
+      <button
+        class="map-toggle"
+        type="button"
+        data-testid="toggle-map-btn"
+        @click="showMap = !showMap"
+      >{{ showMap ? "Hide map" : "Pick on map" }}</button>
+      <MapPicker
+        v-if="showMap"
+        :lat="parsedLat"
+        :lon="parsedLon"
+        :visible="showMap"
+        @pick="onMapPick"
+      />
       <div class="coord-actions">
         <button class="btn-primary" data-testid="position-submit" type="submit">Render Sky</button>
       </div>
     </form>
 
-    <!-- Saved positions -->
     <div v-if="hasSaved" class="saved-section">
       <div class="saved-header">Recent positions</div>
       <ul class="saved-list">
@@ -146,7 +177,7 @@ function formatCoords(lat: number, lon: number): string {
 .ps-title { font-size: 20px; font-weight: 700; color: var(--fg); text-align: center; letter-spacing: -0.01em; flex: none; }
 .ps-sub {
   font-size: 13px; color: var(--muted);
-  text-align: center; max-width: 340px;
+  text-align: center; max-width: 520px;
   line-height: 1.7;
   flex: none;
 }
@@ -161,7 +192,24 @@ function formatCoords(lat: number, lon: number): string {
 }
 .btn-primary:hover { background: color-mix(in oklch, var(--accent), black 10%); }
 
-.coord-form { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; flex: none; }
+.map-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: border-color var(--motion-fast), color var(--motion-fast);
+}
+.map-toggle:hover {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+.coord-form { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 16px; flex: none; }
 .coord-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .coord-field { display: flex; flex-direction: column; gap: 5px; }
 .coord-field--full { grid-column: span 2; }
@@ -192,10 +240,9 @@ function formatCoords(lat: number, lon: number): string {
 .coord-inp:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.18); }
 .coord-actions { display: flex; justify-content: center; }
 
-/* Saved positions */
 .saved-section {
   width: 100%;
-  max-width: 360px;
+  max-width: 520px;
   flex: none;
 }
 

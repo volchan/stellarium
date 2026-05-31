@@ -6,7 +6,7 @@ import { computed } from "vue";
 const telemetry = useTelemetryStore();
 const ui = useUiStore();
 
-defineProps<{
+const props = defineProps<{
 	clockDisplay: string;
 	clockLabel: string;
 }>();
@@ -20,7 +20,7 @@ const isLive = computed(() => telemetry.timeOffset === 0 && telemetry.timeSpeed 
 const clockMeta = computed(() => {
 	if (telemetry.timeSpeed !== 1) return `${telemetry.timeSpeed}×`;
 	const s = Math.abs(telemetry.timeOffset);
-	if (s === 0) return "UTC";
+	if (s === 0) return props.clockLabel;
 	const sign = telemetry.timeOffset >= 0 ? "+" : "−";
 	if (s < 60) return `${sign}${Math.round(s)}s`;
 	if (s < 3600) return `${sign}${Math.round(s / 60)}m`;
@@ -38,10 +38,10 @@ function formatLon(lon: number): string {
 
 <template>
   <header class="hud-top">
-    <div class="hud-brand">
+    <button class="hud-brand" type="button" @click="emit('openForm')">
       <img class="brand-icon" src="/icon.svg" alt="" aria-hidden="true" />
       Stellarium
-    </div>
+    </button>
 
     <div v-if="ui.coordsSet" class="hud-clock-wrap">
       <div class="hud-clock" :class="{ 'clock-offset': !isLive }">
@@ -124,7 +124,13 @@ function formatLon(lon: number): string {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--motion-fast);
 }
+.hud-brand:hover { color: var(--fg); }
 
 .brand-icon { width: 18px; height: 18px; flex: none; }
 
