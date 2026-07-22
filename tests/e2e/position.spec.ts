@@ -8,8 +8,8 @@ test.describe("Position setup flow", () => {
 
   test("submits position and shows sky canvas", async ({ page }) => {
     await page.goto("/");
-    await page.fill("#inp-lat", "48.8566");
-    await page.fill("#inp-lon", "2.3522");
+    await page.fill("#inp-lat-deg", "48.8566");
+    await page.fill("#inp-lon-deg", "2.3522");
     await page.click('[data-testid="position-submit"]');
     await expect(page.locator('[data-testid="sky-canvas"]')).toBeVisible();
   });
