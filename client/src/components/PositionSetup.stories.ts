@@ -177,13 +177,19 @@ export const LoadSavedPositionIntoForm: Story = {
 			const loadBtn = canvas.getByTitle("Load into form");
 			await userEvent.click(loadBtn);
 		});
-		await step("Verify lat field is populated", async () => {
-			const latField = canvas.getByRole("spinbutton", { name: /latitude/i });
-			await expect(latField).toHaveValue(52.52);
+		await step("Verify lat DMS fields are populated", async () => {
+			// 52.52° = 52° 31' 12.0" N
+			await expect(document.querySelector("#inp-lat-deg")).toHaveValue(52);
+			await expect(document.querySelector("#inp-lat-min")).toHaveValue(31);
+			await expect(document.querySelector("#inp-lat-sec")).toHaveValue(12);
+			await expect(document.querySelector("#inp-lat-hemi-n")).toBeChecked();
 		});
-		await step("Verify lon field is populated", async () => {
-			const lonField = canvas.getByRole("spinbutton", { name: /longitude/i });
-			await expect(lonField).toHaveValue(13.405);
+		await step("Verify lon DMS fields are populated", async () => {
+			// 13.405° = 13° 24' 18.0" E
+			await expect(document.querySelector("#inp-lon-deg")).toHaveValue(13);
+			await expect(document.querySelector("#inp-lon-min")).toHaveValue(24);
+			await expect(document.querySelector("#inp-lon-sec")).toHaveValue(18);
+			await expect(document.querySelector("#inp-lon-hemi-e")).toBeChecked();
 		});
 	},
 };
