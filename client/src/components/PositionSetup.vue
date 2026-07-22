@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import MapPicker from "./MapPicker.vue";
+import { decToDmsParts, dmsPartsToDec, formatLatDms, formatLonDms } from "@/lib/coords";
 import { usePositionsStore } from "@/stores/positions";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { useUiStore } from "@/stores/ui";
@@ -10,21 +11,43 @@ const ui = useUiStore();
 const posStore = usePositionsStore();
 
 const labelInput = ref("");
-const latInput = ref("");
-const lonInput = ref("");
+const latDeg = ref("");
+const latMin = ref("");
+const latSec = ref("");
+const latHemi = ref<"N" | "S">("N");
+const lonDeg = ref("");
+const lonMin = ref("");
+const lonSec = ref("");
+const lonHemi = ref<"E" | "W">("E");
 const altInput = ref("");
 const hdgInput = ref("");
 const showMap = ref(false);
 
 const hasSaved = computed(() => posStore.positions.length > 0);
 
+function setLatFromDecimal(lat: number): void {
+	const parts = decToDmsParts(lat, "N", "S");
+	latDeg.value = parts.deg;
+	latMin.value = parts.min;
+	latSec.value = parts.sec;
+	latHemi.value = parts.hemi as "N" | "S";
+}
+
+function setLonFromDecimal(lon: number): void {
+	const parts = decToDmsParts(lon, "E", "W");
+	lonDeg.value = parts.deg;
+	lonMin.value = parts.min;
+	lonSec.value = parts.sec;
+	lonHemi.value = parts.hemi as "E" | "W";
+}
+
 const parsedLat = computed(() => {
-	const v = Number.parseFloat(latInput.value);
+	const v = dmsPartsToDec(latDeg.value, latMin.value, latSec.value, latHemi.value, "S");
 	return Number.isNaN(v) ? 48.8566 : v;
 });
 
 const parsedLon = computed(() => {
-	const v = Number.parseFloat(lonInput.value);
+	const v = dmsPartsToDec(lonDeg.value, lonMin.value, lonSec.value, lonHemi.value, "W");
 	return Number.isNaN(v) ? 2.3522 : v;
 });
 
@@ -40,9 +63,10 @@ function applyPosition(lat: number, lon: number, alt: number, hdg: number) {
 }
 
 function onSubmit() {
-	const lat = Number.parseFloat(latInput.value);
-	const lon = Number.parseFloat(lonInput.value);
+	const lat = dmsPartsToDec(latDeg.value, latMin.value, latSec.value, latHemi.value, "S");
+	const lon = dmsPartsToDec(lonDeg.value, lonMin.value, lonSec.value, lonHemi.value, "W");
 	if (Number.isNaN(lat) || Number.isNaN(lon)) return;
+	if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return;
 	const alt = Number.parseFloat(altInput.value) || 0;
 	const hdg =
 		hdgInput.value !== ""
@@ -50,23 +74,23 @@ function onSubmit() {
 			: telemetry.headingTrue;
 
 	const rawLabel = labelInput.value.trim();
-	const label = rawLabel || `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
+	const label = rawLabel || `${formatLatDms(lat)}, ${formatLonDms(lon)}`;
 
 	posStore.add({ label, lat, lon, alt, hdg });
 	applyPosition(lat, lon, alt, hdg);
 }
 
 function onMapPick({ lat, lon }: { lat: number; lon: number }) {
-	latInput.value = lat.toFixed(6);
-	lonInput.value = lon.toFixed(6);
+	setLatFromDecimal(lat);
+	setLonFromDecimal(lon);
 }
 
 function loadSaved(id: string) {
 	const p = posStore.positions.find((x) => x.id === id);
 	if (!p) return;
 	labelInput.value = p.label;
-	latInput.value = String(p.lat);
-	lonInput.value = String(p.lon);
+	setLatFromDecimal(p.lat);
+	setLonFromDecimal(p.lon);
 	altInput.value = String(p.alt);
 	hdgInput.value = String(p.hdg);
 }
@@ -78,9 +102,7 @@ function applySaved(id: string) {
 }
 
 function formatCoords(lat: number, lon: number): string {
-	const la = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"}`;
-	const lo = `${Math.abs(lon).toFixed(2)}°${lon >= 0 ? "E" : "W"}`;
-	return `${la}  ${lo}`;
+	return `${formatLatDms(lat)}  ${formatLonDms(lon)}`;
 }
 </script>
 
@@ -99,12 +121,46 @@ function formatCoords(lat: number, lon: number): string {
           <input v-model="labelInput" class="coord-inp" id="inp-label" type="text" maxlength="40" placeholder="Home, Paris, Observatory…">
         </div>
         <div class="coord-field">
-          <label class="coord-label" for="inp-lat">Latitude</label>
-          <input v-model="latInput" class="coord-inp" id="inp-lat" type="number" step="any" min="-90" max="90" placeholder="48.8566" required>
+          <label class="coord-label" for="inp-lat-deg">Latitude</label>
+          <div class="dms-row">
+            <input v-model="latDeg" class="coord-inp dms-inp" id="inp-lat-deg" type="number" step="any" min="0" max="90" placeholder="48" required>
+            <span class="dms-unit">°</span>
+            <input v-model="latMin" class="coord-inp dms-inp" id="inp-lat-min" type="number" step="any" min="0" max="59" placeholder="51">
+            <span class="dms-unit">'</span>
+            <input v-model="latSec" class="coord-inp dms-inp" id="inp-lat-sec" type="number" step="any" min="0" max="59.999" placeholder="23.8">
+            <span class="dms-unit">"</span>
+          </div>
+          <div class="hemi-toggle" role="radiogroup" aria-label="Latitude hemisphere">
+            <label class="hemi-opt">
+              <input v-model="latHemi" type="radio" name="lat-hemi" value="N" id="inp-lat-hemi-n">
+              N
+            </label>
+            <label class="hemi-opt">
+              <input v-model="latHemi" type="radio" name="lat-hemi" value="S" id="inp-lat-hemi-s">
+              S
+            </label>
+          </div>
         </div>
         <div class="coord-field">
-          <label class="coord-label" for="inp-lon">Longitude</label>
-          <input v-model="lonInput" class="coord-inp" id="inp-lon" type="number" step="any" min="-180" max="180" placeholder="2.3522" required>
+          <label class="coord-label" for="inp-lon-deg">Longitude</label>
+          <div class="dms-row">
+            <input v-model="lonDeg" class="coord-inp dms-inp" id="inp-lon-deg" type="number" step="any" min="0" max="180" placeholder="2" required>
+            <span class="dms-unit">°</span>
+            <input v-model="lonMin" class="coord-inp dms-inp" id="inp-lon-min" type="number" step="any" min="0" max="59" placeholder="21">
+            <span class="dms-unit">'</span>
+            <input v-model="lonSec" class="coord-inp dms-inp" id="inp-lon-sec" type="number" step="any" min="0" max="59.999" placeholder="8.0">
+            <span class="dms-unit">"</span>
+          </div>
+          <div class="hemi-toggle" role="radiogroup" aria-label="Longitude hemisphere">
+            <label class="hemi-opt">
+              <input v-model="lonHemi" type="radio" name="lon-hemi" value="E" id="inp-lon-hemi-e">
+              E
+            </label>
+            <label class="hemi-opt">
+              <input v-model="lonHemi" type="radio" name="lon-hemi" value="W" id="inp-lon-hemi-w">
+              W
+            </label>
+          </div>
         </div>
         <div class="coord-field">
           <label class="coord-label" for="inp-alt">Altitude (ft) <span class="coord-opt">(optional)</span></label>
@@ -239,6 +295,44 @@ function formatCoords(lat: number, lon: number): string {
 .coord-inp::placeholder { color: var(--muted); opacity: 0.6; }
 .coord-inp:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.18); }
 .coord-actions { display: flex; justify-content: center; }
+
+.dms-row { display: flex; align-items: center; gap: 4px; }
+.dms-inp { width: 0; flex: 1; min-width: 0; text-align: right; }
+.dms-unit { font-size: 12px; color: var(--muted); flex: none; }
+
+.hemi-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+.hemi-opt {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: transparent;
+  padding: 5px 14px;
+  cursor: pointer;
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+.hemi-opt + .hemi-opt { border-left: 1px solid var(--border); }
+.hemi-opt:hover { color: var(--fg); }
+.hemi-opt:has(input:checked) {
+  background: var(--accent);
+  color: #fff;
+}
+.hemi-opt input {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip: rect(0 0 0 0);
+  overflow: hidden;
+  white-space: nowrap;
+}
 
 .saved-section {
   width: 100%;
