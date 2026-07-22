@@ -152,8 +152,8 @@ export const SubmitMinimalForm: Story = {
 			await userEvent.click(canvas.getByTestId("position-submit"));
 		});
 		await step("Verify auto-generated label", async () => {
-			// Label is "lat°, lon°" when label field is empty
-			await expect(canvas.getByText("48.86°, 2.35°")).toBeInTheDocument();
+			// Label is the DMS coordinates when the label field is empty
+			await expect(canvas.getByText("48°51'23.8\"N, 2°21'7.9\"E")).toBeInTheDocument();
 		});
 	},
 };

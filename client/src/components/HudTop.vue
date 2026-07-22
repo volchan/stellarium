@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatLatDms, formatLonDms } from "@/lib/coords";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { useUiStore } from "@/stores/ui";
 import { computed } from "vue";
@@ -28,12 +29,6 @@ const clockMeta = computed(() => {
 	return `${sign}${Math.round(s / 86400)}d`;
 });
 
-function formatLat(lat: number): string {
-	return `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"}`;
-}
-function formatLon(lon: number): string {
-	return `${Math.abs(lon).toFixed(2)}°${lon >= 0 ? "E" : "W"}`;
-}
 </script>
 
 <template>
@@ -58,8 +53,8 @@ function formatLon(lon: number): string {
         </div>
         <span class="hud-sep">|</span>
         <div class="data-item">
-          <span class="data-value dim">{{ formatLat(telemetry.lat) }}</span>
-          <span class="data-value dim" style="margin-left:4px">{{ formatLon(telemetry.lon) }}</span>
+          <span class="data-value dim">{{ formatLatDms(telemetry.lat) }}</span>
+          <span class="data-value dim" style="margin-left:4px">{{ formatLonDms(telemetry.lon) }}</span>
         </div>
         <span class="hud-sep">|</span>
         <div class="data-item">

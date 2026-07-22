@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import MapPicker from "./MapPicker.vue";
+import { decToDmsParts, dmsPartsToDec, formatLatDms, formatLonDms } from "@/lib/coords";
 import { usePositionsStore } from "@/stores/positions";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { useUiStore } from "@/stores/ui";
@@ -23,40 +24,6 @@ const hdgInput = ref("");
 const showMap = ref(false);
 
 const hasSaved = computed(() => posStore.positions.length > 0);
-
-function dmsPartsToDec(
-	deg: string,
-	min: string,
-	sec: string,
-	hemi: string,
-	negativeHemi: string,
-): number {
-	const d = Number.parseFloat(deg);
-	if (Number.isNaN(d)) return Number.NaN;
-	const m = min === "" ? 0 : Number.parseFloat(min);
-	const s = sec === "" ? 0 : Number.parseFloat(sec);
-	if (Number.isNaN(m) || Number.isNaN(s)) return Number.NaN;
-	const value = d + m / 60 + s / 3600;
-	return hemi === negativeHemi ? -value : value;
-}
-
-function decToDmsParts(
-	value: number,
-	positiveHemi: string,
-	negativeHemi: string,
-): { deg: string; min: string; sec: string; hemi: string } {
-	const abs = Math.abs(value);
-	const deg = Math.floor(abs);
-	const minFloat = (abs - deg) * 60;
-	const min = Math.floor(minFloat);
-	const sec = (minFloat - min) * 60;
-	return {
-		deg: String(deg),
-		min: String(min),
-		sec: sec.toFixed(1),
-		hemi: value >= 0 ? positiveHemi : negativeHemi,
-	};
-}
 
 function setLatFromDecimal(lat: number): void {
 	const parts = decToDmsParts(lat, "N", "S");
@@ -107,7 +74,7 @@ function onSubmit() {
 			: telemetry.headingTrue;
 
 	const rawLabel = labelInput.value.trim();
-	const label = rawLabel || `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
+	const label = rawLabel || `${formatLatDms(lat)}, ${formatLonDms(lon)}`;
 
 	posStore.add({ label, lat, lon, alt, hdg });
 	applyPosition(lat, lon, alt, hdg);
@@ -135,9 +102,7 @@ function applySaved(id: string) {
 }
 
 function formatCoords(lat: number, lon: number): string {
-	const la = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"}`;
-	const lo = `${Math.abs(lon).toFixed(2)}°${lon >= 0 ? "E" : "W"}`;
-	return `${la}  ${lo}`;
+	return `${formatLatDms(lat)}  ${formatLonDms(lon)}`;
 }
 </script>
 
