@@ -1,14 +1,23 @@
 import {
 	AdditiveBlending,
+	BackSide,
 	BufferAttribute,
 	BufferGeometry,
+	CanvasTexture,
+	ClampToEdgeWrapping,
 	DynamicDrawUsage,
 	LineBasicMaterial,
 	LineSegments,
+	LinearFilter,
+	Matrix4,
+	Mesh,
+	MeshBasicMaterial,
 	PerspectiveCamera,
 	Points,
+	RepeatWrapping,
 	Scene,
 	ShaderMaterial,
+	SRGBColorSpace,
 	Vector3,
 	WebGLRenderer,
 } from "three";
@@ -284,6 +293,122 @@ export function initRenderer(
 
 	const bgStars = new Points(bgGeo, bgMat);
 	scene.add(bgStars);
+
+	// ── Milky Way skybox (real NASA imagery, real coordinates) ───
+	// A large sphere textured with NASA/SVS "Deep Star Maps 2020" — a real
+	// photographic Milky Way panorama, equirectangular in celestial (RA/Dec)
+	// coordinates. The sphere's local frame IS the equatorial frame (texture
+	// column = RA, row = Dec); every frame we re-orient the whole mesh into
+	// the horizontal (Alt/Az) frame using the same raDec_to_AltAz pipeline
+	// the stars use, so the image rotates with sidereal time and shifts with
+	// observer lat/lon for real, exactly like the actual sky would.
+
+	const MW_RADIUS = 90;
+
+	// The source JPEG (NASA/SVS "Deep Star Maps 2020", 8K EXR re-tonemapped and
+	// downsampled to 4096×2048 — see scripts/README or commit history for the
+	// ffmpeg pipeline) is drawn through an offscreen canvas for a light blur
+	// that smooths JPEG blocking once magnified by a narrow FOV.
+	const mwCanvas = document.createElement("canvas");
+	mwCanvas.width = 4096;
+	mwCanvas.height = 2048;
+	// biome-ignore lint/style/noNonNullAssertion: canvas 2d context always available
+	const mwCtx = mwCanvas.getContext("2d")!;
+	const mwTexture = new CanvasTexture(mwCanvas);
+	mwTexture.colorSpace = SRGBColorSpace;
+	mwTexture.wrapS = RepeatWrapping;
+	mwTexture.wrapT = ClampToEdgeWrapping;
+	mwTexture.flipY = false; // uv.v=0 → image row 0 (top) directly, no implicit flip
+	mwTexture.generateMipmaps = false;
+	mwTexture.minFilter = LinearFilter;
+
+	const mwImg = new Image();
+	mwImg.onload = () => {
+		mwCtx.filter = "blur(1.5px) brightness(1.5) saturate(1.2)";
+		mwCtx.drawImage(mwImg, 0, 0, mwCanvas.width, mwCanvas.height);
+		mwTexture.needsUpdate = true;
+	};
+	mwImg.src = "/textures/milkyway.jpg";
+
+	// Custom UV-sphere built directly in the equatorial frame: local X = (RA=0,Dec=0),
+	// local Y = (RA=6h,Dec=0), local Z = celestial pole (Dec=90). uv.u = RA/24 (image
+	// left edge = RA 0h), uv.v = (90-Dec)/180 (image top row = Dec +90). Building the
+	// geometry ourselves (instead of relying on SphereGeometry's internal UV formula)
+	// keeps the RA/Dec ↔ pixel mapping fully explicit and easy to calibrate/flip.
+	// Declination is clamped just short of ±90° to avoid the pole vertex fan (a
+	// mipmap/degenerate-triangle "starburst" artifact) — leaves a tiny, invisible
+	// unrendered cap right at the celestial poles.
+	const MW_WSEG = 96;
+	const MW_HSEG = 48;
+	const MW_DEC_CLAMP = 89;
+	const MW_FADE_DEG = 40; // feather width blending the polar cutoff into the sky
+
+	function buildMwGeometry(): BufferGeometry {
+		const positions: number[] = [];
+		const uvs: number[] = [];
+		const colors: number[] = [];
+		const indices: number[] = [];
+		const fadeStart = MW_DEC_CLAMP - MW_FADE_DEG;
+
+		for (let iy = 0; iy <= MW_HSEG; iy++) {
+			const v = iy / MW_HSEG;
+			const decDeg = MW_DEC_CLAMP - v * (2 * MW_DEC_CLAMP);
+			const decR = (decDeg * Math.PI) / 180;
+			const absDec = Math.abs(decDeg);
+			const brightness =
+				absDec <= fadeStart ? 1 : Math.max(0, 1 - (absDec - fadeStart) / MW_FADE_DEG);
+			for (let ix = 0; ix <= MW_WSEG; ix++) {
+				const u = ix / MW_WSEG;
+				const raR = u * 2 * Math.PI; // RA in radians (u=0 → RA=0h, u=1 → RA=24h)
+				positions.push(
+					MW_RADIUS * Math.cos(decR) * Math.cos(raR),
+					MW_RADIUS * Math.cos(decR) * Math.sin(raR),
+					MW_RADIUS * Math.sin(decR),
+				);
+				uvs.push(u, v);
+				colors.push(brightness, brightness, brightness);
+			}
+		}
+
+		for (let iy = 0; iy < MW_HSEG; iy++) {
+			for (let ix = 0; ix < MW_WSEG; ix++) {
+				const a = iy * (MW_WSEG + 1) + ix;
+				const b = a + MW_WSEG + 1;
+				indices.push(a, b, a + 1, b, b + 1, a + 1);
+			}
+		}
+
+		const geo = new BufferGeometry();
+		geo.setAttribute("position", new BufferAttribute(new Float32Array(positions), 3));
+		geo.setAttribute("uv", new BufferAttribute(new Float32Array(uvs), 2));
+		geo.setAttribute("color", new BufferAttribute(new Float32Array(colors), 3));
+		geo.setIndex(indices);
+		return geo;
+	}
+
+	const mwGeo = buildMwGeometry();
+
+	const mwMat = new MeshBasicMaterial({
+		map: mwTexture,
+		vertexColors: true,
+		side: BackSide,
+		depthTest: false,
+		depthWrite: false,
+		toneMapped: false,
+	});
+	const mwMesh = new Mesh(mwGeo, mwMat);
+	scene.add(mwMesh);
+
+	// Renderer-space direction for an equatorial (RA/Dec) coordinate — same
+	// alt/az → xyz convention used everywhere else (Y-up, North=-Z, East=+X).
+	function eqDirToRenderVec(raH: number, decDeg: number, lat: number, lon: number, gmst: number) {
+		const altAz = raDec_to_AltAz(raH, decDeg, lat, lon, gmst);
+		const ar = (altAz.alt * Math.PI) / 180;
+		const azr = (altAz.az * Math.PI) / 180;
+		return new Vector3(Math.cos(ar) * Math.sin(azr), Math.sin(ar), -Math.cos(ar) * Math.cos(azr));
+	}
+
+	const _mwBasis = new Matrix4();
 
 	// ── Constellation lines ──────────────────────────────
 
@@ -670,6 +795,17 @@ export function initRenderer(
 		// Keep live RA/Dec for solar bodies so the hover ring tracks motion
 		_liveRaDec.set(-1, sunRD);
 		_liveRaDec.set(-2, moonRD);
+
+		// Milky Way skybox — rotate the whole textured sphere from the equatorial
+		// frame into Alt/Az using 3 reference directions run through the exact
+		// same raDec_to_AltAz used for every star.
+		{
+			const e1 = eqDirToRenderVec(0, 0, lat, lon, gmst);
+			const e2 = eqDirToRenderVec(6, 0, lat, lon, gmst);
+			const e3 = eqDirToRenderVec(0, 89.9999, lat, lon, gmst);
+			_mwBasis.makeBasis(e1, e2, e3);
+			mwMesh.quaternion.setFromRotationMatrix(_mwBasis);
+		}
 
 		const effMag = state.mag;
 
