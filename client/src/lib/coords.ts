@@ -5,6 +5,10 @@ export interface DmsParts {
 	hemi: string;
 }
 
+// DD = decimal degrees ("48.856611"), DMM = degrees + decimal minutes
+// ("48°51.397'"), DMS = degrees/minutes/seconds ("48°51'23.8\"").
+export type CoordFormat = "dd" | "dmm" | "dms";
+
 export function decToDmsParts(value: number, positiveHemi: string, negativeHemi: string): DmsParts {
 	const abs = Math.abs(value);
 	const deg = Math.floor(abs);
@@ -17,6 +21,45 @@ export function decToDmsParts(value: number, positiveHemi: string, negativeHemi:
 		sec: sec.toFixed(1),
 		hemi: value >= 0 ? positiveHemi : negativeHemi,
 	};
+}
+
+export function decToFormatParts(
+	value: number,
+	positiveHemi: string,
+	negativeHemi: string,
+	format: CoordFormat,
+): DmsParts {
+	const abs = Math.abs(value);
+	const hemi = value >= 0 ? positiveHemi : negativeHemi;
+
+	if (format === "dd") {
+		// Decimal degrees carries its own sign — no separate hemisphere toggle needed.
+		return { deg: value.toFixed(6), min: "", sec: "", hemi: positiveHemi };
+	}
+
+	let deg = Math.floor(abs);
+	const minFloat = (abs - deg) * 60;
+
+	if (format === "dmm") {
+		let min = Number(minFloat.toFixed(4));
+		if (min >= 60) {
+			min -= 60;
+			deg += 1;
+		}
+		return { deg: String(deg), min: min.toFixed(4), sec: "", hemi };
+	}
+
+	let min = Math.floor(minFloat);
+	let sec = Number(((minFloat - min) * 60).toFixed(1));
+	if (sec >= 60) {
+		sec -= 60;
+		min += 1;
+	}
+	if (min >= 60) {
+		min -= 60;
+		deg += 1;
+	}
+	return { deg: String(deg), min: String(min), sec: sec.toFixed(1), hemi };
 }
 
 export function dmsPartsToDec(

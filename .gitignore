@@ -19,8 +19,8 @@ node_modules/
 *.jpg
 *.jpeg
 # But keep public assets
-!src/public/*.png
-!src/public/*.jpg
+!client/public/**/*.png
+!client/public/**/*.jpg
 
 # Environment
 .env
