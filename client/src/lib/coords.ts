@@ -37,15 +37,28 @@ export function decToFormatParts(
 		return { deg: value.toFixed(6), min: "", sec: "", hemi: positiveHemi };
 	}
 
-	const deg = Math.floor(abs);
+	let deg = Math.floor(abs);
 	const minFloat = (abs - deg) * 60;
 
 	if (format === "dmm") {
-		return { deg: String(deg), min: minFloat.toFixed(4), sec: "", hemi };
+		let min = Number(minFloat.toFixed(4));
+		if (min >= 60) {
+			min -= 60;
+			deg += 1;
+		}
+		return { deg: String(deg), min: min.toFixed(4), sec: "", hemi };
 	}
 
-	const min = Math.floor(minFloat);
-	const sec = (minFloat - min) * 60;
+	let min = Math.floor(minFloat);
+	let sec = Number(((minFloat - min) * 60).toFixed(1));
+	if (sec >= 60) {
+		sec -= 60;
+		min += 1;
+	}
+	if (min >= 60) {
+		min -= 60;
+		deg += 1;
+	}
 	return { deg: String(deg), min: String(min), sec: sec.toFixed(1), hemi };
 }
 

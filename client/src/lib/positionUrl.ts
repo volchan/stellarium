@@ -29,8 +29,11 @@ export function parsePositionParams(search: string): UrlPosition | null {
 	if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
 	if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
 
-	const alt = Number.parseFloat(p.get("alt") ?? "0") || 0;
-	const hdg = ((Number.parseFloat(p.get("hdg") ?? "0") || 0) % 360 + 360) % 360;
+	const altRaw = Number.parseFloat(p.get("alt") ?? "0");
+	const alt = Number.isFinite(altRaw) ? altRaw : 0;
+
+	const hdgRaw = Number.parseFloat(p.get("hdg") ?? "0");
+	const hdg = Number.isFinite(hdgRaw) ? ((hdgRaw % 360) + 360) % 360 : 0;
 
 	return { lat, lon, alt, hdg };
 }

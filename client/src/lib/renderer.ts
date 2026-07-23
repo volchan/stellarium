@@ -328,6 +328,9 @@ export function initRenderer(
 		mwCtx.drawImage(mwImg, 0, 0, mwCanvas.width, mwCanvas.height);
 		mwTexture.needsUpdate = true;
 	};
+	mwImg.onerror = () => {
+		console.error(`Failed to load Milky Way texture from ${mwImg.src}`);
+	};
 	mwImg.src = "/textures/milkyway.jpg";
 
 	// Custom UV-sphere built directly in the equatorial frame: local X = (RA=0,Dec=0),
@@ -365,7 +368,7 @@ export function initRenderer(
 					MW_RADIUS * Math.cos(decR) * Math.sin(raR),
 					MW_RADIUS * Math.sin(decR),
 				);
-				uvs.push(u, v);
+				uvs.push(u, (90 - decDeg) / 180);
 				colors.push(brightness, brightness, brightness);
 			}
 		}
