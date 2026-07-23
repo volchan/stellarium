@@ -69,9 +69,20 @@ const parsedLon = computed(() => {
 // Re-render the currently-entered coordinates in the newly selected format
 // (rather than clearing the fields) so switching formats mid-entry preserves
 // the position the user already typed in.
-watch(coordFormat, () => {
-	if (latDeg.value !== "") setLatFromDecimal(parsedLat.value);
-	if (lonDeg.value !== "") setLonFromDecimal(parsedLon.value);
+watch(coordFormat, (fmt) => {
+	if (latDeg.value !== "") {
+		setLatFromDecimal(parsedLat.value);
+	} else if (fmt === "dd") {
+		// DD's sign carries the hemisphere; the toggle is hidden and must not
+		// linger on a stale S/W from a previous format, or a later negative
+		// entry here would be double-negated against it.
+		latHemi.value = "N";
+	}
+	if (lonDeg.value !== "") {
+		setLonFromDecimal(parsedLon.value);
+	} else if (fmt === "dd") {
+		lonHemi.value = "E";
+	}
 });
 
 const latDegPlaceholder = computed(() => (coordFormat.value === "dd" ? "48.856611" : "48"));

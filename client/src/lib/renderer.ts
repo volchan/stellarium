@@ -802,7 +802,10 @@ export function initRenderer(
 		{
 			const e1 = eqDirToRenderVec(0, 0, lat, lon, gmst);
 			const e2 = eqDirToRenderVec(6, 0, lat, lon, gmst);
-			const e3 = eqDirToRenderVec(0, 89.9999, lat, lon, gmst);
+			// raDec_to_AltAz is a proper rotation, so it preserves cross products —
+			// deriving e3 this way (rather than sampling near the pole) guarantees
+			// an exactly orthonormal basis with no floating-point shear.
+			const e3 = e1.clone().cross(e2).normalize();
 			_mwBasis.makeBasis(e1, e2, e3);
 			mwMesh.quaternion.setFromRotationMatrix(_mwBasis);
 		}
