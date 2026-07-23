@@ -2,11 +2,12 @@
 import HudTop from "@/components/HudTop.vue";
 import SkyCanvas from "@/components/SkyCanvas.vue";
 import TooltipBar from "@/components/TooltipBar.vue";
+import { clearPositionUrl, parsePositionParams } from "@/lib/positionUrl";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { useUiStore } from "@/stores/ui";
 // biome-ignore lint: CJS default export
 import tzFind from "@photostructure/tz-lookup";
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 
 const telemetry = useTelemetryStore();
 const ui = useUiStore();
@@ -78,7 +79,29 @@ function onKeyDown(e: KeyboardEvent) {
 	}
 }
 
+function applySharedPosition() {
+	const shared = parsePositionParams(window.location.search);
+	if (!shared) return;
+
+	telemetry.lat = shared.lat;
+	telemetry.lon = shared.lon;
+	telemetry.alt = shared.alt;
+	telemetry.headingTrue = shared.hdg;
+	telemetry.resetTime();
+	ui.camera.az = shared.hdg;
+	ui.camera.alt = 30;
+	ui.coordsSet = true;
+}
+
+watch(
+	() => ui.coordsSet,
+	(coordsSet) => {
+		if (!coordsSet) clearPositionUrl();
+	},
+);
+
 onMounted(() => {
+	applySharedPosition();
 	clockInterval = setInterval(updateClock, 100);
 	document.addEventListener("keydown", onKeyDown);
 });

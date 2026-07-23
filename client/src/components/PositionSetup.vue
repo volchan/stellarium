@@ -1,14 +1,29 @@
 <script setup lang="ts">
 import MapPicker from "./MapPicker.vue";
-import { decToDmsParts, dmsPartsToDec, formatLatDms, formatLonDms } from "@/lib/coords";
+import {
+	type CoordFormat,
+	decToFormatParts,
+	dmsPartsToDec,
+	formatLatDms,
+	formatLonDms,
+} from "@/lib/coords";
+import { applyPositionToUrl } from "@/lib/positionUrl";
 import { usePositionsStore } from "@/stores/positions";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { useUiStore } from "@/stores/ui";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
 const telemetry = useTelemetryStore();
 const ui = useUiStore();
 const posStore = usePositionsStore();
+
+const COORD_FORMATS: { value: CoordFormat; label: string }[] = [
+	{ value: "dd", label: "DD" },
+	{ value: "dmm", label: "DMM" },
+	{ value: "dms", label: "DMS" },
+];
+
+const coordFormat = ref<CoordFormat>("dms");
 
 const labelInput = ref("");
 const latDeg = ref("");
@@ -26,7 +41,7 @@ const showMap = ref(false);
 const hasSaved = computed(() => posStore.positions.length > 0);
 
 function setLatFromDecimal(lat: number): void {
-	const parts = decToDmsParts(lat, "N", "S");
+	const parts = decToFormatParts(lat, "N", "S", coordFormat.value);
 	latDeg.value = parts.deg;
 	latMin.value = parts.min;
 	latSec.value = parts.sec;
@@ -34,7 +49,7 @@ function setLatFromDecimal(lat: number): void {
 }
 
 function setLonFromDecimal(lon: number): void {
-	const parts = decToDmsParts(lon, "E", "W");
+	const parts = decToFormatParts(lon, "E", "W", coordFormat.value);
 	lonDeg.value = parts.deg;
 	lonMin.value = parts.min;
 	lonSec.value = parts.sec;
@@ -51,6 +66,22 @@ const parsedLon = computed(() => {
 	return Number.isNaN(v) ? 2.3522 : v;
 });
 
+// Re-render the currently-entered coordinates in the newly selected format
+// (rather than clearing the fields) so switching formats mid-entry preserves
+// the position the user already typed in.
+watch(coordFormat, () => {
+	if (latDeg.value !== "") setLatFromDecimal(parsedLat.value);
+	if (lonDeg.value !== "") setLonFromDecimal(parsedLon.value);
+});
+
+const latDegPlaceholder = computed(() => (coordFormat.value === "dd" ? "48.856611" : "48"));
+const lonDegPlaceholder = computed(() => (coordFormat.value === "dd" ? "2.352222" : "2"));
+const latMinPlaceholder = computed(() => (coordFormat.value === "dmm" ? "51.3967" : "51"));
+const lonMinPlaceholder = computed(() => (coordFormat.value === "dmm" ? "21.1333" : "21"));
+const latDegMin = computed(() => (coordFormat.value === "dd" ? -90 : 0));
+const lonDegMin = computed(() => (coordFormat.value === "dd" ? -180 : 0));
+const minMax = computed(() => (coordFormat.value === "dmm" ? 59.9999 : 59));
+
 function applyPosition(lat: number, lon: number, alt: number, hdg: number) {
 	telemetry.lat = lat;
 	telemetry.lon = lon;
@@ -60,6 +91,7 @@ function applyPosition(lat: number, lon: number, alt: number, hdg: number) {
 	ui.camera.az = hdg;
 	ui.camera.alt = 30;
 	ui.coordsSet = true;
+	applyPositionToUrl({ lat, lon, alt, hdg });
 }
 
 function onSubmit() {
@@ -120,17 +152,62 @@ function formatCoords(lat: number, lon: number): string {
           <label class="coord-label" for="inp-label">Label <span class="coord-opt">(optional)</span></label>
           <input v-model="labelInput" class="coord-inp" id="inp-label" type="text" maxlength="40" placeholder="Home, Paris, Observatory…">
         </div>
+        <div class="coord-field coord-field--full format-row">
+          <span class="coord-label">Coordinate format</span>
+          <div class="format-toggle" role="radiogroup" aria-label="Coordinate format">
+            <label v-for="f in COORD_FORMATS" :key="f.value" class="format-opt">
+              <input
+                v-model="coordFormat"
+                type="radio"
+                name="coord-format"
+                :value="f.value"
+                :id="`inp-coord-format-${f.value}`"
+              >
+              {{ f.label }}
+            </label>
+          </div>
+          <span class="format-help">
+            <button type="button" class="format-help-btn" aria-describedby="format-help-tip">?</button>
+            <span class="format-help-tip" id="format-help-tip" role="tooltip">
+              <p>
+                <strong>DD · Decimal Degrees</strong>
+                A single signed number per axis, no N/S/E/W letter or toggle.
+                Use a negative value for south latitudes or west longitudes.
+                What GPS apps and most online maps show by default.
+                <span class="format-help-ex">48.856611, -2.352222</span>
+              </p>
+              <p>
+                <strong>DMM · Degrees, Decimal Minutes</strong>
+                Whole degrees plus minutes as a decimal, always positive.
+                Pick the hemisphere with the N/S and E/W toggle instead. The
+                format most handheld GPS units and marine/aviation charts use.
+                <span class="format-help-ex">48°51.397'N, 2°21.133'E</span>
+              </p>
+              <p>
+                <strong>DMS · Degrees, Minutes, Seconds</strong>
+                Whole degrees, whole minutes, and decimal seconds, always
+                positive. Pick the hemisphere with the N/S and E/W toggle
+                instead. The traditional surveying notation.
+                <span class="format-help-ex">48°51'23.8"N, 2°21'8.0"E</span>
+              </p>
+            </span>
+          </span>
+        </div>
         <div class="coord-field">
           <label class="coord-label" for="inp-lat-deg">Latitude</label>
           <div class="dms-row">
-            <input v-model="latDeg" class="coord-inp dms-inp" id="inp-lat-deg" type="number" step="any" min="0" max="90" placeholder="48" required>
+            <input v-model="latDeg" class="coord-inp dms-inp" id="inp-lat-deg" type="number" step="any" :min="latDegMin" max="90" :placeholder="latDegPlaceholder" required>
             <span class="dms-unit">°</span>
-            <input v-model="latMin" class="coord-inp dms-inp" id="inp-lat-min" type="number" step="any" min="0" max="59" placeholder="51">
-            <span class="dms-unit">'</span>
-            <input v-model="latSec" class="coord-inp dms-inp" id="inp-lat-sec" type="number" step="any" min="0" max="59.999" placeholder="23.8">
-            <span class="dms-unit">"</span>
+            <template v-if="coordFormat !== 'dd'">
+              <input v-model="latMin" class="coord-inp dms-inp" id="inp-lat-min" type="number" step="any" min="0" :max="minMax" :placeholder="latMinPlaceholder">
+              <span class="dms-unit">'</span>
+            </template>
+            <template v-if="coordFormat === 'dms'">
+              <input v-model="latSec" class="coord-inp dms-inp" id="inp-lat-sec" type="number" step="any" min="0" max="59.999" placeholder="23.8">
+              <span class="dms-unit">"</span>
+            </template>
           </div>
-          <div class="hemi-toggle" role="radiogroup" aria-label="Latitude hemisphere">
+          <div v-if="coordFormat !== 'dd'" class="hemi-toggle" role="radiogroup" aria-label="Latitude hemisphere">
             <label class="hemi-opt">
               <input v-model="latHemi" type="radio" name="lat-hemi" value="N" id="inp-lat-hemi-n">
               N
@@ -144,14 +221,18 @@ function formatCoords(lat: number, lon: number): string {
         <div class="coord-field">
           <label class="coord-label" for="inp-lon-deg">Longitude</label>
           <div class="dms-row">
-            <input v-model="lonDeg" class="coord-inp dms-inp" id="inp-lon-deg" type="number" step="any" min="0" max="180" placeholder="2" required>
+            <input v-model="lonDeg" class="coord-inp dms-inp" id="inp-lon-deg" type="number" step="any" :min="lonDegMin" max="180" :placeholder="lonDegPlaceholder" required>
             <span class="dms-unit">°</span>
-            <input v-model="lonMin" class="coord-inp dms-inp" id="inp-lon-min" type="number" step="any" min="0" max="59" placeholder="21">
-            <span class="dms-unit">'</span>
-            <input v-model="lonSec" class="coord-inp dms-inp" id="inp-lon-sec" type="number" step="any" min="0" max="59.999" placeholder="8.0">
-            <span class="dms-unit">"</span>
+            <template v-if="coordFormat !== 'dd'">
+              <input v-model="lonMin" class="coord-inp dms-inp" id="inp-lon-min" type="number" step="any" min="0" :max="minMax" :placeholder="lonMinPlaceholder">
+              <span class="dms-unit">'</span>
+            </template>
+            <template v-if="coordFormat === 'dms'">
+              <input v-model="lonSec" class="coord-inp dms-inp" id="inp-lon-sec" type="number" step="any" min="0" max="59.999" placeholder="8.0">
+              <span class="dms-unit">"</span>
+            </template>
           </div>
-          <div class="hemi-toggle" role="radiogroup" aria-label="Longitude hemisphere">
+          <div v-if="coordFormat !== 'dd'" class="hemi-toggle" role="radiogroup" aria-label="Longitude hemisphere">
             <label class="hemi-opt">
               <input v-model="lonHemi" type="radio" name="lon-hemi" value="E" id="inp-lon-hemi-e">
               E
@@ -269,6 +350,7 @@ function formatCoords(lat: number, lon: number): string {
 .coord-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .coord-field { display: flex; flex-direction: column; gap: 5px; }
 .coord-field--full { grid-column: span 2; }
+.format-row { flex-direction: row; align-items: center; gap: 10px; }
 .coord-label {
   font-family: var(--font-mono);
   font-size: 9px; font-weight: 700;
@@ -332,6 +414,115 @@ function formatCoords(lat: number, lon: number): string {
   clip: rect(0 0 0 0);
   overflow: hidden;
   white-space: nowrap;
+}
+
+.format-toggle {
+  display: flex;
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.format-opt {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  background: transparent;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+.format-opt + .format-opt { border-left: 1px solid var(--border); }
+.format-opt:hover { color: var(--fg); }
+.format-opt:has(input:checked) {
+  background: var(--accent);
+  color: #fff;
+}
+.format-opt input {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip: rect(0 0 0 0);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.format-help { position: relative; display: inline-flex; }
+.format-help-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  padding: 0;
+  transition: color var(--motion-fast), border-color var(--motion-fast);
+}
+.format-help-btn:hover,
+.format-help-btn:focus-visible { color: var(--fg); border-color: var(--accent); }
+
+.format-help-tip {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  transform: translateY(-50%) translateX(-4px);
+  width: 300px;
+  max-width: 80vw;
+  background: rgba(13, 15, 26, 0.98);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--fg-dim);
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-fast), transform var(--motion-fast);
+  z-index: 10;
+}
+.format-help-tip p { margin: 0; }
+.format-help-tip p + p { margin-top: 10px; }
+.format-help-tip strong {
+  display: block;
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+.format-help-ex {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-warm);
+}
+.format-help-btn:hover + .format-help-tip,
+.format-help-btn:focus-visible + .format-help-tip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%) translateX(0);
+}
+
+@media (max-width: 640px) {
+  .format-help-tip {
+    left: auto;
+    right: 0;
+    top: calc(100% + 8px);
+    transform: translateY(4px);
+  }
+  .format-help-btn:hover + .format-help-tip,
+  .format-help-btn:focus-visible + .format-help-tip {
+    transform: translateY(0);
+  }
 }
 
 .saved-section {
